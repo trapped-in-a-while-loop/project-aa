@@ -1,41 +1,92 @@
-from problem import *
-from operator import add
+import numpy
+import math
+import networkx as nx
+import matplotlib.pyplot as plt
+from itertools import chain, combinations
 
-def anotherPoint(old_point, angle):
-  x = 1000 * math.cos(angle)
-  y = 1000 * math.sin(angle)
-  new_point = np.array(list(map(add, old_point, [x, y])))
-  return new_point
+M_full = [
+    # Tirs cadrés
+    [0, 0, 0, 0, 0, 1, 1, 0, 0],
+    [0, 0, 0, 0, 0, 0, 1, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 1, 1],
+    [0, 0, 0, 0, 0, 0, 0, 0, 1],
+    [0, 0, 0, 0, 0, 0, 0, 0, 1],
 
-class Exact:
-  def __init__(self, problem):
-    self.adj = []
-    possible_defs = []
-    scoring_kicks = []
+    # Positions bloquant les tirs
+    [1, 0, 0, 0, 0, 0, 0, 0, 0],
+    [1, 1, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 1, 0, 0, 0, 0, 0, 0],
+    [0, 0, 1, 1, 1, 0, 0, 0, 0],
+]
 
-    for i in range(len(problem.opponents[0])):
-      opponent = [problem.opponents[0][i], problem.opponents[1][i]]
-      direction = 0
-      while direction < 2 * math.pi:
-        opponent = np.array(opponent)
-        if not (problem.goals[0].kickResult(opponent, direction) is None):
-          scoring_kicks.append([opponent, direction])
-        direction += problem.theta_step
+# Partie droite de la matrice d'adjacence (les positions bloquants les tirs)
+# TODO: lier les sommets à leurs coordonnées
+M = [
+    [1, 0, 0, 0, 0, 0, 0, 0, 0],
+    [1, 1, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 1, 0, 0, 0, 0, 0, 0],
+    [0, 0, 1, 1, 1, 0, 0, 0, 0], 
+]
+nbTirsCadres = 5
 
-    for x in range(int(problem.getFieldWidth().item() / problem.pos_step)):
-      for y in range(int(problem.getFieldHeight().item() / problem.pos_step)):
-        defense = [problem.pos_step * x, problem.pos_step * y]
-        adj_line = [0] * len(scoring_kicks)
-        for kick in scoring_kicks:
-          if not (segmentCircleIntersection(kick[0],
-            anotherPoint(kick[0], kick[1]), defense, problem.robot_radius)
-            is None):
-            adj_line[scoring_kicks.index(kick)] = 1
-            possible_defs.append(defense)
-        if 1 in adj_line:
-          self.adj.append(adj_line)
-    print(str(len(self.adj)) + ", " + str(len(self.adj[0])))
-    print(len(possible_defs))
+class Exact :
+    def __init__(self, problem, board):
+        self.problem = problem
+        self.board = board
+        self.possiblePositions = []
+        self.blockingPositions = []
+        self.subSets = []
 
-  def run(self):
-    return 0
+    def isDominating(self, subset):
+        domination = [False] * nbTirsCadres
+        for s in subset:
+            for j in range(nbTirsCadres):
+                if (s[j] == 1):
+                    domination[j] = True
+
+        for d in domination:
+            if d == False:
+                return False
+        return True
+        
+    def solve(self):
+        # Ensemble de tous les sous-ensembles de positions bloquantes triés par taille
+        allSubsets = list(chain.from_iterable(combinations(M, r) for r in range(len(M)+1)))
+        print("Nombre de sous-ensembles : " + str(len(allSubsets)))
+
+        #for s in allSubsets:
+        #    print(s)
+
+        minimalDominantSet = ([])
+        
+        for s in allSubsets:
+            if self.isDominant(s):
+                minimalDominantSet = s
+                break
+
+        if (minimalDominantSet != ([])):
+            print("Le sous ensemble minimal est ")
+            print(minimalDominantSet)
+        else:
+            print("Il n'y a pas de sous ensemble dominant! C'est dommage")
+
+        #self.drawGraph()
+
+    def drawGraph(self):
+        G = nx.Graph()
+        left_nodes = nx.Graph()
+        
+        for i in range(len(M_full)):
+            G.add_node(i)
+            if i < nbTirsCadres:
+                left_nodes.add_node(i)
+
+            for j in range(len(M_full[i])):
+                if (M_full[i][j] == 1):
+                    G.add_edge(i, j)
+
+        nx.draw(G)
+        plt.subplot(121)
+        print("Drawing graph ...")
+        nx.draw_networkx(G, pos = nx.drawing.layout.bipartite_layout(G, left_nodes))
+        plt.show()
