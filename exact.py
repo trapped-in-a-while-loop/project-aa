@@ -6,16 +6,15 @@ from itertools import chain, combinations
 from geometry import segmentCircleIntersection
 from operator import add
 
-# TODO: lier les sommets à leurs coordonnées
+SOLUTION_FILE_NAME = "solution.json"
 
 class Exact :
     def __init__(self, problem):
         self.problem = problem
         self.adj_mat = []
-        self.opponents = []
-        self.posts = []
         self.scoring_kicks = []
         self.possible_defs = []
+        self.coord_map = dict()
 
     def anotherPoint(self, old_point, angle):
         x = 1000 * math.cos(angle)
@@ -82,9 +81,11 @@ class Exact :
                                     possible_defs.append(defense)
                             if 1 in adj_line:
                                 self.adj_mat.append(adj_line)
+                                self.coord_map[str(adj_line)] = (x, y)
 
         for i in self.adj_mat:
             print(i)
+        
         print("matrix's size = " + str(len(self.adj_mat)) + ", " +
         str(len(self.adj_mat[0])))
 
@@ -93,12 +94,10 @@ class Exact :
     def isDominating(self, subset, nbPotentialGoals):
         domination = [False] * nbPotentialGoals
 
-        if (len(subset) > 1):
-            for s in subset:
-                if isinstance(s, list):
-                    for j in range(nbPotentialGoals):
-                        if (s[j] == 1):
-                            domination[j] = True
+        for s in subset:
+            for j in range(nbPotentialGoals):
+                if (s[j] == 1):
+                    domination[j] = True
 
         for d in domination:
             if d == False:
@@ -130,9 +129,24 @@ class Exact :
         if (minimalDominantSet != ([])):
             print("Le sous ensemble minimal est ")
             print(minimalDominantSet)
+            print("Cela correspond aux positions ")
+            for s in minimalDominantSet:
+                print(self.coord_map[str(s)])
+            self.buildSolutionFile(minimalDominantSet)
+       
         else:
             print("Il n'y a pas de sous ensemble dominant! C'est dommage")
 
+    def buildSolutionFile(self, minSet):
+        solFile = open(SOLUTION_FILE_NAME, "w+")
+        solFile.write("{\"defenders\":[")
+        for i in range(len(minSet)):
+            coordinates = self.coord_map[str(minSet[i])]
+            solFile.write("[" + str(coordinates[0]) + "," + str(coordinates[1]) + "]")
+            if i < len(minSet) - 1:
+                solFile.write(",")
+        solFile.write("]}")
+        solFile.close()
 
     def drawGraph(self):
         G = nx.Graph()
