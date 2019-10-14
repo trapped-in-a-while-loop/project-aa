@@ -4,6 +4,7 @@ import sys
 import json
 
 from board import *
+from exact import *
 
 if (len(sys.argv) < 3) :
     sys.exit("Usage: " + sys.argv[0] + " <problem.json> <solution.json>")
@@ -19,6 +20,10 @@ with open(solution_path) as solution_file:
 
 b = Board(problem, solution)
 
-b.run()
+e = Exact(problem)
+e.solve()
+#e.drawGraph()
+
+#b.run()
 
 sys.exit()
