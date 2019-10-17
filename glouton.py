@@ -1,5 +1,6 @@
 import numpy as np
 import math
+import time
 from geometry import segmentCircleIntersection
 from operator import add
 
@@ -132,3 +133,77 @@ class Glouton:
                 solFile.write(",")
         solFile.write("]}")
         solFile.close()
+
+    def getWhiteDeg(self, v, color):
+        result = 0
+        for i in range(len(self.adj_mat[0])):
+            if self.adj_mat[v][i] == 1 and color[len(self.adj_mat) + i] == "White":
+                result += 1
+        return result
+        
+    def neighbors_def(self, v):
+        result = []
+        for i in range(len(self.adj_mat[v])):
+            if self.adj_mat[v][i] == 1:
+                result.append(i)
+        return result
+
+    def neighbors_kick(self, v):
+        result = []
+        for i in range(len(self.adj_mat)):
+            if self.adj_mat[i][v] == 1:
+                result.append(i)
+        return result
+
+    def solve2(self):
+        self.buildAdjacencyMatrix()
+        """self.adj_mat = [
+            [0, 1, 0, 0, 1],
+            [1, 0, 1, 1, 0],
+            [0, 1, 0, 1, 0],
+            [0, 1, 1, 0, 1],
+            [1, 0, 0, 1, 0]
+        ]"""
+
+        non_black_defs = list()
+        non_black_kicks = list()
+        self.dominating_set = list()
+        color = ["White"] * (len(self.adj_mat) + len(self.adj_mat[0]))
+
+        for i in range(len(self.adj_mat)):
+            non_black_defs.append(self.adj_mat[i].count(1) + 1)
+        for i in range(len(self.adj_mat[0])):
+            deg = 0
+            for j in range(len(self.adj_mat)):
+                if self.adj_mat[j][i]:
+                    deg += 1
+            non_black_kicks.append(deg + 1)
+
+        v = non_black_defs.index(max(non_black_defs))
+        white_deg = self.getWhiteDeg(v, color)
+
+        while white_deg > 0:
+            print(str(v) + ", " + str(white_deg))
+            self.dominating_set.append(v)
+            if color[v] == "White":
+                for j in self.neighbors_def(v):
+                    non_black_kicks[j] -= 1
+            for j in self.neighbors_def(v):
+                if color[j] == "White":
+                    for k in self.neighbors_kick(j):
+                        non_black_defs[k] -= 1
+                    color[j] = "Grey"
+            color[v] = "Black"
+            v = non_black_defs.index(max(non_black_defs))
+            white_deg = self.getWhiteDeg(v, color)
+            time.sleep(0.5)
+        print(self.dominating_set)
+
+        dominantSet = []
+        print("The dominating set is: ")
+        for i in self.dominating_set:
+            dominantSet.append(self.adj_mat[i])
+
+        print("size dom set: " + str(len(dominantSet)))
+        self.buildSolutionFile(dominantSet)
+

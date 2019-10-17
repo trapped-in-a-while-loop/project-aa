@@ -22,7 +22,7 @@ if (len(sys.argv) == 3):
 
 else:
     g = Glouton(problem)
-    g.solve()
+    g.solve2()
     solution_path = SOLUTION_FILE_NAME
     
 with open(solution_path) as solution_file:
