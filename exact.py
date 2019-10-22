@@ -1,18 +1,16 @@
 import numpy as np
 import math
-import networkx as nx
-import matplotlib.pyplot as plt
+from util import buildSolutionFile, SOLUTION_FILE_NAME
 from itertools import chain, combinations
 from geometry import segmentCircleIntersection
 from operator import add
-
-SOLUTION_FILE_NAME = "solution.json"
 
 class Exact :
     def __init__(self, problem):
         self.problem = problem
         self.adj_mat = []
         self.scoring_kicks = []
+        self.opponents_pos = []
         self.possible_defs = []
         self.coord_map = dict()
 
@@ -37,9 +35,8 @@ class Exact :
         return result
 
     def buildAdjacencyMatrix(self):
-        opponents = []
         for i in range(len(self.problem.opponents[0])):
-            opponents.append([self.problem.opponents[0][i], self.problem.opponents[1][i]])
+            self.opponents_pos.append([self.problem.opponents[0][i], self.problem.opponents[1][i]])
 
         posts = []
         for i in range(len(self.problem.goals)):
@@ -72,7 +69,7 @@ class Exact :
                 adj_line = [0] * len(scoring_kicks)
                 if defense not in possible_defs:
                     if defense not in posts:
-                        if self.dist(opponents, defense, self.problem.robot_radius):
+                        if self.dist(self.opponents_pos, defense, self.problem.robot_radius):
                             for kick in scoring_kicks:
                                 if not (segmentCircleIntersection(kick[0],
                                 self.anotherPoint(kick[0], kick[1]), defense, self.problem.robot_radius)
@@ -83,8 +80,8 @@ class Exact :
                                 self.adj_mat.append(adj_line)
                                 self.coord_map[str(adj_line)] = (x, y)
 
-        for i in self.adj_mat:
-            print(i)
+        #for i in self.adj_mat:
+        #    print(i)
         
         print("matrix's size = " + str(len(self.adj_mat)) + ", " +
         str(len(self.adj_mat[0])))
@@ -104,27 +101,104 @@ class Exact :
                 return False
         return True
 
+    # Not used
+    def respectMinDist(self, subset, minDist):
+        for i in range(len(subset)):
+            coord = self.coord_map[str(subset[i])]
 
-    def solve(self):
-        self.buildAdjacencyMatrix()
-        M = self.adj_mat
+            # Check if the min distance is respected between all defenders
+            for j in range(i, len(subset)):
+                coord2 = self.coord_map[str(subset[j])]
+                if i != j and math.hypot(coord2[0] - coord[0], coord2[1] - coord[1]) < minDist:
+                    return False
 
+             # Check if the min distance isrespected between defenders and opponents
+            for o in self.opponents_pos:
+                if math.hypot(o[0] - coord[0], o[1] - coord[1]) < minDist:
+                    return False
+        return True
+
+    # Check if a set is dominating and respect minimum distance in one loop. Returns true if
+    # that's the case.
+    def isDominatingAndRespectMinDist(self, subset, nbPotentialGoals, minDist):
+        domination = [False] * nbPotentialGoals
+
+        for i in range(len(subset)):
+            for j in range(nbPotentialGoals):
+                if (subset[i][j] == 1):
+                    domination[j] = True
+
+            coord_i = self.coord_map[str(subset[i])]
+
+            # Check if the min distance is respected between all defenders
+            for j in range(i, len(subset)):
+                coord_j = self.coord_map[str(subset[j])]
+                if i != j and math.hypot(coord_j[0] - coord_i[0], coord_j[1] - coord_i[1]) < minDist:
+                    return False
+
+             # Check if the min distance isrespected between defenders and opponents
+            for o in self.opponents_pos:
+                if math.hypot(o[0] - coord_i[0], o[1] - coord_i[1]) < minDist:
+                    return False
+
+        # Check if it's a dominating set
+        for d in domination:
+            if d == False:
+                return False
+ 
+        return True
+
+    def solve_noExtension(self):
         # Try to find a minimal dominating set among all possible subsets of blocking positions
         minimalDominantSet = ([])
         i = 1
         solutionFound = False
 
-        while (not solutionFound and i < len(M)+1) :
+        while (not solutionFound and i < len(self.adj_mat)+1) :
+            print("SEARCHING FOR SUBSETS OF SIZE " + str(i-1))
             # Set of all subsets of blocking positions of size i-1 (sorted by size)
-            subsets = list(chain.from_iterable(combinations(M, r) for r in range(i-1, i)))
+            subsets = list(chain.from_iterable(combinations(self.adj_mat, r) for r in range(i-1, i)))
 
             for s in subsets:
                 # Break the loop if a dominating set is found
-                if (self.isDominating(s, len(M[0]))):
+                if (self.isDominating(s, len(self.adj_mat[0]))):
                     minimalDominantSet = s
                     solutionFound = True
                     break
             i += 1
+
+        return minimalDominantSet
+
+    def solve_minDist(self):
+        # Try to find a minimal dominating set among all possible subsets of blocking positions
+        minimalDominantSet = ([])
+        i = 1
+        solutionFound = False
+
+        while (not solutionFound and i < len(self.adj_mat)+1) :
+            print("SEARCHING FOR SUBSETS OF SIZE " + str(i-1))
+            # Set of all subsets of blocking positions of size i-1 (sorted by size)
+            subsets = list(chain.from_iterable(combinations(self.adj_mat, r) for r in range(i-1, i)))
+
+            for s in subsets:
+                # Break the loop if a set is dominating and respect minimum distance
+                if (self.isDominatingAndRespectMinDist(s, len(self.adj_mat[0]), self.problem.min_dist)):
+                    minimalDominantSet = s
+                    solutionFound = True
+                    break
+            i += 1
+
+        return minimalDominantSet
+
+    def solve(self):
+        self.buildAdjacencyMatrix()
+        minimalDominantSet = ([])
+                
+        # Pick the correct algorithm to solve the problem depending on the parameters of the problem
+        if self.problem.min_dist is None:
+            minimalDominantSet = self.solve_noExtension()
+        else:
+            minimalDominantSet = self.solve_minDist()
 
         if (minimalDominantSet != ([])):
             print("Le sous ensemble minimal est ")
@@ -132,37 +206,8 @@ class Exact :
             print("Cela correspond aux positions ")
             for s in minimalDominantSet:
                 print(self.coord_map[str(s)])
-            self.buildSolutionFile(minimalDominantSet)
+            buildSolutionFile(self, minimalDominantSet)
        
         else:
             print("Il n'y a pas de sous ensemble dominant! C'est dommage")
 
-    def buildSolutionFile(self, minSet):
-        solFile = open(SOLUTION_FILE_NAME, "w+")
-        solFile.write("{\"defenders\":[")
-        for i in range(len(minSet)):
-            coordinates = self.coord_map[str(minSet[i])]
-            solFile.write("[" + str(coordinates[0]) + "," + str(coordinates[1]) + "]")
-            if i < len(minSet) - 1:
-                solFile.write(",")
-        solFile.write("]}")
-        solFile.close()
-
-    def drawGraph(self):
-        G = nx.Graph()
-        left_nodes = nx.Graph()
-        
-        for i in range(len(self.adj_mat)):
-            G.add_node(i)
-            if i < self.adj_mat[0]:
-                left_nodes.add_node(i)
-
-            for j in range(len(self.adj_mat[i])):
-                if (self.adj_mat[i][j] == 1):
-                    G.add_edge(i, j)
-
-        nx.draw(G)
-        plt.subplot(121)
-        print("Drawing graph ...")
-        nx.draw_networkx(G, pos = nx.drawing.layout.bipartite_layout(G, left_nodes))
-        plt.show()
