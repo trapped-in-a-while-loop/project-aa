@@ -1,9 +1,12 @@
 import numpy as np
 import math
+import itertools
+import sys
 from util import buildSolutionFile, SOLUTION_FILE_NAME
 from itertools import chain, combinations
 from geometry import segmentCircleIntersection
 from operator import add
+from board import maxDist
 
 class Exact :
     def __init__(self, problem):
@@ -78,21 +81,25 @@ class Exact :
                                     possible_defs.append(defense)
                             if 1 in adj_line:
                                 self.adj_mat.append(adj_line)
-                                self.coord_map[str(adj_line)] = (x, y)
-
-        #for i in self.adj_mat:
-        #    print(i)
+                                self.coord_map[str(adj_line)] = [x, y]
+                                '''
+                                if (str(adj_line) in self.coord_map):
+                                    #print("ah shit, here we go again")
+                                    self.coord_map[str(adj_line)].append([x, y])
+                                
+                                else:
+                                    self.coord_map[str(adj_line)] = [[]]
+                                '''
         
         print("matrix's size = " + str(len(self.adj_mat)) + ", " +
         str(len(self.adj_mat[0])))
 
-
     # Returns true if <subset> is a dominating set, false otherwise
-    def isDominating(self, subset, nbPotentialGoals):
-        domination = [False] * nbPotentialGoals
+    def isDominating(self, subset, nbFramedShots):
+        domination = [False] * nbFramedShots
 
         for s in subset:
-            for j in range(nbPotentialGoals):
+            for j in range(nbFramedShots):
                 if (s[j] == 1):
                     domination[j] = True
 
@@ -101,30 +108,13 @@ class Exact :
                 return False
         return True
 
-    # Not used
-    def respectMinDist(self, subset, minDist):
-        for i in range(len(subset)):
-            coord = self.coord_map[str(subset[i])]
-
-            # Check if the min distance is respected between all defenders
-            for j in range(i, len(subset)):
-                coord2 = self.coord_map[str(subset[j])]
-                if i != j and math.hypot(coord2[0] - coord[0], coord2[1] - coord[1]) < minDist:
-                    return False
-
-             # Check if the min distance isrespected between defenders and opponents
-            for o in self.opponents_pos:
-                if math.hypot(o[0] - coord[0], o[1] - coord[1]) < minDist:
-                    return False
-        return True
-
     # Check if a set is dominating and respect minimum distance in one loop. Returns true if
     # that's the case.
-    def isDominatingAndRespectMinDist(self, subset, nbPotentialGoals, minDist):
-        domination = [False] * nbPotentialGoals
+    def isDominatingAndRespectMinDist(self, subset, nbFramedShots, minDist):
+        domination = [False] * nbFramedShots
 
         for i in range(len(subset)):
-            for j in range(nbPotentialGoals):
+            for j in range(nbFramedShots):
                 if (subset[i][j] == 1):
                     domination[j] = True
 
@@ -148,6 +138,31 @@ class Exact :
  
         return True
 
+    def initialDefendersPosition(self, defenders):
+        # Generate all permutations possible for this set of defenders
+        all_permut = list(itertools.permutations(defenders))
+
+        defenders_pos = np.zeros((len(defenders), 2))
+        best_permut = []
+        max_dist = sys.maxsize
+
+        # Loop though all possible permutations to find the one with a minimum distance between 
+        # initial defenders position and solution's defenders position
+        for permut in all_permut:
+            # Retrieve the coordinates of the defender thanks to his adjencency line
+            for i in range(len(permut)):
+                defenders_pos[i] = self.coord_map[str(permut[i])]
+            # Compute the maximum distance that a solution's defender will have to travel to place himself
+            dist = maxDist(self.problem.defenders, defenders_pos.transpose())
+            # Check if this permutation is the best for now
+            if dist < max_dist:
+                max_dist = dist
+                best_permut = permut
+                #print("new max dist: " + str(max_dist))
+        
+        #print()
+        return (best_permut, max_dist)
+
     def solve_noExtension(self):
         # Try to find a minimal dominating set among all possible subsets of blocking positions
         minimalDominantSet = ([])
@@ -165,6 +180,33 @@ class Exact :
                     minimalDominantSet = s
                     solutionFound = True
                     break
+            i += 1
+
+        return minimalDominantSet
+
+    def solve_initialPosDefenders(self):
+        # Try to find a minimal dominating set among all possible subsets of blocking positions
+        minimalDominantSet = ([])
+        i = 1
+        solutionFound = False
+        max_dist = sys.maxsize
+
+        while (not solutionFound and i < len(self.adj_mat)+1) :
+            print("SEARCHING FOR SUBSETS OF SIZE " + str(i-1))
+            # Set of all subsets of blocking positions of size i-1 (sorted by size)
+            subsets = list(chain.from_iterable(combinations(self.adj_mat, r) for r in range(i-1, i)))
+
+            for s in subsets:
+                # Break the loop if a dominating set is found
+                if (self.isDominating(s, len(self.adj_mat[0]))):
+                    #print("test")
+                    #print(s)
+                    (optimalDominantSet, dist) = self.initialDefendersPosition(s)
+                    if (dist < max_dist):
+                        max_dist = dist
+                        minimalDominantSet = optimalDominantSet
+                    solutionFound = True
+                
             i += 1
 
         return minimalDominantSet
@@ -195,10 +237,12 @@ class Exact :
         minimalDominantSet = ([])
                 
         # Pick the correct algorithm to solve the problem depending on the parameters of the problem
-        if self.problem.min_dist is None:
-            minimalDominantSet = self.solve_noExtension()
-        else:
+        if (not self.problem.min_dist is None):
             minimalDominantSet = self.solve_minDist()
+        elif (not self.problem.defenders is None):
+            minimalDominantSet = self.solve_initialPosDefenders()
+        else:
+            minimalDominantSet= self.solve_noExtension()
 
         if (minimalDominantSet != ([])):
             print("Le sous ensemble minimal est ")
