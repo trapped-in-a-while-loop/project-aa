@@ -79,49 +79,54 @@ class Glouton:
                                 self.adj_mat.append(adj_line)
                                 self.coord_map[str(adj_line)] = (x, y)
 
+    # Returns true if <subset> is a dominating set, false otherwise
+    def isDominating(self, subset, nbPotentialGoals):
+        domination = [False] * nbPotentialGoals
+
+        for s in subset:
+            for j in range(nbPotentialGoals):
+                if (s[j] == 1):
+                    domination[j] = True
+
+        for d in domination:
+            if d == False:
+                return False
+        return True
+
     def solve(self):
         self.buildAdjacencyMatrix()
+        print("mat adj done")
 
-        non_black_unsorted = list()
-        self.dominating_set = list()
-        colours = ["White"] * (len(self.adj_mat) + len(self.adj_mat[0]))
-        color = list()
+        degrees = ([])
+        dominating_set = ([])
 
         for i in range(len(self.adj_mat)):
-            non_black_unsorted.append(self.adj_mat[i].count(1) + 1)
+            degrees.append(self.adj_mat[i].count(1))
 
-        non_black_sorted = non_black_unsorted
-        non_black_sorted.sort()
+        while (not self.isDominating(dominating_set, len(self.adj_mat[0]))) and (len(dominating_set) < len(self.adj_mat)):
+            s = degrees.index(max(degrees))
+            if not self.adj_mat[s] in dominating_set:
+                dominating_set.append(self.adj_mat[s])
+            degrees[s] = 0
 
-        coloured = 0
-        current_degree = -1
-        all_coloured = False
-        while coloured < len(self.adj_mat):
+            for i in range(len(self.adj_mat[s])):
+                if self.adj_mat[s][i] == 1:
+                    for j in range(len(self.adj_mat)):
+                        if self.adj_mat[j][i] == 1:
+                            degrees[j] -= 1 
 
-            current_node = non_black_unsorted.index(non_black_sorted[current_degree])
-            all_coloured = True
-            for i in range(len(self.adj_mat[0])):
-                if self.adj_mat[current_node][i] == 1 and colours[len(self.adj_mat) + i] == "White":
-                    colours[i] = "Grey"
-                    coloured += 1
-                    all_coloured = False
-            if not all_coloured:
-                if colours[current_node] == "White":
-                    coloured += 1
-                colours[current_node] = "Black"
-            non_black_unsorted[current_node] = -1
-            current_degree -= 1
+        print("size dom set: " + str(len(dominating_set)))
+        for i in dominating_set:
+            print(str(i.count(1)) + ", ")
 
-        dominantSet = []
+        if (dominating_set != ([])):
+            print("Le sous ensemble dominant est ")
+            print(dominating_set)
+            print("Cela correspond aux positions ")
+            for s in dominating_set:
+                print(self.coord_map[str(s)])
+            self.buildSolutionFile(dominating_set)
 
-        print("The dominating set is: ")
-        for i in range(len(self.adj_mat)):
-            if colours[i] == "Black":
-                print(str(i + 1) + " ")
-                dominantSet.append(self.adj_mat[i])
-
-        print("size dom set: " + str(len(dominantSet)))
-        self.buildSolutionFile(dominantSet)
 
     def buildSolutionFile(self, minSet):
         solFile = open(SOLUTION_FILE_NAME, "w+")
@@ -133,77 +138,3 @@ class Glouton:
                 solFile.write(",")
         solFile.write("]}")
         solFile.close()
-
-    def getWhiteDeg(self, v, color):
-        result = 0
-        for i in range(len(self.adj_mat[0])):
-            if self.adj_mat[v][i] == 1 and color[len(self.adj_mat) + i] == "White":
-                result += 1
-        return result
-        
-    def neighbors_def(self, v):
-        result = []
-        for i in range(len(self.adj_mat[v])):
-            if self.adj_mat[v][i] == 1:
-                result.append(i)
-        return result
-
-    def neighbors_kick(self, v):
-        result = []
-        for i in range(len(self.adj_mat)):
-            if self.adj_mat[i][v] == 1:
-                result.append(i)
-        return result
-
-    def solve2(self):
-        self.buildAdjacencyMatrix()
-        """self.adj_mat = [
-            [0, 1, 0, 0, 1],
-            [1, 0, 1, 1, 0],
-            [0, 1, 0, 1, 0],
-            [0, 1, 1, 0, 1],
-            [1, 0, 0, 1, 0]
-        ]"""
-
-        non_black_defs = list()
-        non_black_kicks = list()
-        self.dominating_set = list()
-        color = ["White"] * (len(self.adj_mat) + len(self.adj_mat[0]))
-
-        for i in range(len(self.adj_mat)):
-            non_black_defs.append(self.adj_mat[i].count(1) + 1)
-        for i in range(len(self.adj_mat[0])):
-            deg = 0
-            for j in range(len(self.adj_mat)):
-                if self.adj_mat[j][i]:
-                    deg += 1
-            non_black_kicks.append(deg + 1)
-
-        v = non_black_defs.index(max(non_black_defs))
-        white_deg = self.getWhiteDeg(v, color)
-
-        while white_deg > 0:
-            print(str(v) + ", " + str(white_deg))
-            self.dominating_set.append(v)
-            if color[v] == "White":
-                for j in self.neighbors_def(v):
-                    non_black_kicks[j] -= 1
-            for j in self.neighbors_def(v):
-                if color[j] == "White":
-                    for k in self.neighbors_kick(j):
-                        non_black_defs[k] -= 1
-                    color[j] = "Grey"
-            color[v] = "Black"
-            v = non_black_defs.index(max(non_black_defs))
-            white_deg = self.getWhiteDeg(v, color)
-            time.sleep(0.5)
-        print(self.dominating_set)
-
-        dominantSet = []
-        print("The dominating set is: ")
-        for i in self.dominating_set:
-            dominantSet.append(self.adj_mat[i])
-
-        print("size dom set: " + str(len(dominantSet)))
-        self.buildSolutionFile(dominantSet)
-

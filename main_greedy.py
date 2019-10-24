@@ -4,7 +4,7 @@ import sys
 import json
 
 from board import *
-from glouton import *
+from greedy import *
 
 if (len(sys.argv) != 2 and len(sys.argv) != 3):
     sys.exit("Usage: \n- To test a solution: " + sys.argv[0] 
@@ -22,7 +22,7 @@ if (len(sys.argv) == 3):
 
 else:
     g = Glouton(problem)
-    g.solve2()
+    g.solve()
     solution_path = SOLUTION_FILE_NAME
     
 with open(solution_path) as solution_file:
