@@ -166,21 +166,36 @@ class Exact :
     def solve_noExtension(self):
         # Try to find a minimal dominating set among all possible subsets of blocking positions
         minimalDominantSet = ([])
-        i = 1
+        cpt = 0
         solutionFound = False
 
-        while (not solutionFound and i < len(self.adj_mat)+1) :
-            print("SEARCHING FOR SUBSETS OF SIZE " + str(i-1))
-            # Set of all subsets of blocking positions of size i-1 (sorted by size)
-            subsets = list(chain.from_iterable(combinations(self.adj_mat, r) for r in range(i-1, i)))
+        while (not solutionFound and cpt < len(self.adj_mat)+1) :
+            print("SEARCHING FOR SUBSETS OF SIZE " + str(cpt))
 
-            for s in subsets:
-                # Break the loop if a dominating set is found
-                if (self.isDominating(s, len(self.adj_mat[0]))):
-                    minimalDominantSet = s
+            # Check if each subset's combination of size <cpt> is a dominanting set
+            pool = tuple(self.adj_mat)
+            n = len(pool)
+            if cpt > n:
+                return
+            indices = list(range(cpt))
+
+            while True:
+                dominating_set = tuple(pool[i] for i in indices)
+                if (self.isDominating(dominating_set, len(self.adj_mat[0]))):
+                    minimalDominantSet = dominating_set
                     solutionFound = True
                     break
-            i += 1
+
+                for i in reversed(range(cpt)):
+                    if indices[i] != i + n - cpt:
+                        break
+                else:
+                    break   # previously return
+                indices[i] += 1
+                for j in range(i+1, cpt):
+                    indices[j] = indices[j-1] + 1
+
+            cpt += 1
 
         return minimalDominantSet
 
@@ -214,21 +229,37 @@ class Exact :
     def solve_minDist(self):
         # Try to find a minimal dominating set among all possible subsets of blocking positions
         minimalDominantSet = ([])
-        i = 1
+        cpt = 0
         solutionFound = False
 
-        while (not solutionFound and i < len(self.adj_mat)+1) :
-            print("SEARCHING FOR SUBSETS OF SIZE " + str(i-1))
-            # Set of all subsets of blocking positions of size i-1 (sorted by size)
-            subsets = list(chain.from_iterable(combinations(self.adj_mat, r) for r in range(i-1, i)))
+        while (not solutionFound and cpt < len(self.adj_mat)+1) :
+            print("SEARCHING FOR SUBSETS OF SIZE " + str(cpt))
+            
+            # Check if each subset's combination of size <cpt> is a dominating set and respects the minimum
+            # distance between robots
+            pool = tuple(self.adj_mat)
+            n = len(pool)
+            if cpt > n:
+                return
+            indices = list(range(cpt))
 
-            for s in subsets:
-                # Break the loop if a set is dominating and respect minimum distance
-                if (self.isDominatingAndRespectMinDist(s, len(self.adj_mat[0]), self.problem.min_dist)):
-                    minimalDominantSet = s
+            while True:
+                dominating_set = tuple(pool[i] for i in indices)
+                if (self.isDominatingAndRespectMinDist(dominating_set, len(self.adj_mat[0]), self.problem.min_dist)):
+                    minimalDominantSet = dominating_set
                     solutionFound = True
                     break
-            i += 1
+
+                for i in reversed(range(cpt)):
+                    if indices[i] != i + n - cpt:
+                        break
+                else:
+                    break   # previously return
+                indices[i] += 1
+                for j in range(i+1, cpt):
+                    indices[j] = indices[j-1] + 1
+         
+            cpt += 1
 
         return minimalDominantSet
 
@@ -242,7 +273,7 @@ class Exact :
         elif (not self.problem.defenders is None):
             minimalDominantSet = self.solve_initialPosDefenders()
         else:
-            minimalDominantSet= self.solve_noExtension()
+            minimalDominantSet = self.solve_noExtension()
 
         if (minimalDominantSet != ([])):
             print("Le sous ensemble minimal est ")
