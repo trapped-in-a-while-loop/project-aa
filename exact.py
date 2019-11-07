@@ -81,38 +81,74 @@ class Exact :
                                     possible_defs.append(defense)
                         if 1 in adj_line:
                             self.adj_mat.append(adj_line)
-                                #self.coord_map[str(adj_line)] = [x, y]
+                             #self.coord_map[str(adj_line)] = [x, y]
 
-                        if (str(adj_line) in self.coord_map):
-                                    #print("ah shit, here we go again")
-                            self.coord_map[str(adj_line)].append([x, y])
-                                
-                        else:
-                            self.coord_map[str(adj_line)] = [[x,y]]
+                            if (str(adj_line) in self.coord_map):
+                                #print("ah shit, here we go again")
+                                self.coord_map[str(adj_line)].append([x, y])
+                                    
+                            else:
+                                self.coord_map[str(adj_line)] = [[x,y]]
         
         print("matrix's size = " + str(len(self.adj_mat)) + ", " +
         str(len(self.adj_mat[0])))
 
-    '''
-                if self.dist(possible_defs, defense, self.problem.robot_radius):
-                    if self.dist(opponents, defense, self.problem.robot_radius):
-                        for kick in scoring_kicks:
-                            i = segmentCircleIntersection(kick[0],
-                            self.anotherPoint(kick[0], kick[1]), defense, self.problem.robot_radius)
-                            if not (i is None):
-                                if i[0] < goal.posts[0][0]:
-    '''
+        
+    def buildAdjacencyMatrix2(self):
+        for i in range(len(self.problem.opponents[0])):
+            self.opponents_pos.append([self.problem.opponents[0][i], self.problem.opponents[1][i]])
 
-    '''
-    if defense not in possible_defs:
+        posts = []
+        for i in range(len(self.problem.goals)):
+            posts.append([self.problem.goals[i].posts[0][0],
+            self.problem.goals[i].posts[1][0]])
+            posts.append([self.problem.goals[i].posts[0][1],
+            self.problem.goals[i].posts[1][1]])
+
+        scoring_kicks = []
+        for i in range(len(self.problem.opponents[0])):
+            opponent = [self.problem.opponents[0][i], self.problem.opponents[1][i]]
+            direction = 0
+            while direction < 2 * math.pi:
+                for goal in self.problem.goals:
+                    if not (goal.kickResult(opponent, direction) is None):
+                        """ 4 next lines to correct incomprehensible kickResult()'s
+                            behavior """
+                        if (direction > math.pi):
+                            scoring_kicks.append([opponent, direction - math.pi])
+                        elif (direction < math.pi):
+                            scoring_kicks.append([opponent, direction + math.pi])
+                direction += self.problem.theta_step
+
+        possible_defs = []
+        for x in self.frange(self.problem.field_limits[0][0], self.problem.field_limits[0][1],
+        self.problem.pos_step):
+            for y in self.frange(self.problem.field_limits[1][0], self.problem.field_limits[1][1],
+            self.problem.pos_step):
+                defense = [x, y]
+                adj_line = [0] * len(scoring_kicks)
+                if defense not in possible_defs:
                     if defense not in posts:
                         if self.dist(self.opponents_pos, defense, self.problem.robot_radius):
                             for kick in scoring_kicks:
                                 if not (segmentCircleIntersection(kick[0],
                                 self.anotherPoint(kick[0], kick[1]), defense, self.problem.robot_radius)
                                 is None):
+                                    adj_line[scoring_kicks.index(kick)] = 1
+                                    possible_defs.append(defense)
+                            if 1 in adj_line:
+                                self.adj_mat.append(adj_line)
+                                #self.coord_map[str(adj_line)] = [x, y]
 
-    '''
+                                if (str(adj_line) in self.coord_map):
+                                    #print("ah shit, here we go again")
+                                    self.coord_map[str(adj_line)].append([x, y])
+                                            
+                                else:
+                                    self.coord_map[str(adj_line)] = [[x,y]]
+            
+        print("matrix's size = " + str(len(self.adj_mat)) + ", " +
+        str(len(self.adj_mat[0])))
 
     # Returns true if <subset> is a dominating set, false otherwise
     def isDominating(self, subset, nbFramedShots):
@@ -158,14 +194,81 @@ class Exact :
  
         return True
 
+    def initialDefendersPosition_rec(self, possible_coords, def_num, sol, i, n):
+        if (i > n):
+            print(sol)
+            return
+
+        print(possible_coords[0][i])
+
+        for i in range(len(possible_coords[0])):
+            for j in range(len(possible_coords[1])):
+                for k in range(len(possible_coords[2])):
+                    print("(" + str(possible_coords[0][i]) + "," + str(possible_coords[1][j]) + "," + str(possible_coords[2][k]) + ")")
+
+        
+
+
     def initialDefendersPosition(self, defenders):
         # Generate all permutations possible for this set of defenders
         all_permut = list(itertools.permutations(defenders))
 
-        # Indexes of the better coordinates
-        indexes_coords = []
+        # Store the possible cooordinates of each defender according to their adjacency line
+        possible_coords = [[] for i in range(len(defenders))]
 
+        # Number of coordinates possible for each defender according to their adjacency line
+        nb_coord = []
+
+        print("nombre de coordonnees possible avec ces défenseurs")
+        for d in range(len(defenders)):
+            print("défenseur " + str(d) + ": ")
+            defender = defenders[d]
+            for coord in self.coord_map[str(defender)]:
+                print(coord)
+                possible_coords[d].append(coord)
+            nb_coord.append(len(possible_coords[d]))
+            print()
+
+        #print("len all_permut")
+        #print(len(all_permut))
+
+        #print(possible_coords)
+        
         defenders_pos = np.zeros((len(defenders), 2))
+
+        print(len(possible_coords[0]))
+
+        # j numéro défenseur
+        # k numéro coordonnées
+        for i in range(len(possible_coords[0])):
+            defenders_pos[0] = possible_coords[0][i]
+            for j in range(1, len(defenders)):
+                for k in range(len(possible_coords[j])):
+                    #print("pos: " + str(possible_coords[j][k]))
+                    defenders_pos[j] = possible_coords[j][k]
+
+                print("defenders_pos: " + str(defenders_pos))
+
+        print("nb_coord")
+        print(nb_coord)
+
+        numLoops = 1
+        for i in range(len(defenders)):
+            numLoops *= len(possible_coords[i])
+
+        print("numloop: " + str(numLoops))
+
+        for i in range(numLoops):
+            for j in range(len(defenders)):
+                print(str(possible_coords[j][i % nb_coord[j]]) )
+            
+        
+        
+        
+        
+        # Indexes of the better coordinates 
+        indexes_coords = []
+        
         best_permut = []
         max_dist = sys.maxsize
 
@@ -177,14 +280,6 @@ class Exact :
             for i in range(len(permut)):
                 defenders_pos[i] = self.coord_map[str(permut[i])][0]
 
-            #print("defenders pos:")
-            #print(defenders_pos)
-
-            '''for i in range(len(permut)):
-                coord_permut = self.coord_map[str(permut[i])]
-                for j in range(len(coord_permut)):
-                    defenders_pos[j] = 
-            '''
             # Compute the maximum distance that a solution's defender will have to travel to place himself
             dist = maxDist(self.problem.defenders, defenders_pos.transpose())
             # Check if this permutation is the best for now
@@ -192,9 +287,8 @@ class Exact :
                 max_dist = dist
                 best_permut = permut
                 indexes_coords = [0, 0, 0]
-                print("new max dist: " + str(max_dist))
+                #print("new max dist: " + str(max_dist))
         
-        #print()
         return (best_permut, max_dist, indexes_coords)
 
     def solve_noExtension(self):
@@ -298,7 +392,7 @@ class Exact :
         return minimalDominantSet
 
     def solve(self):
-        self.buildAdjacencyMatrix()
+        self.buildAdjacencyMatrix2()
         minimalDominantSet = ([])
         indexes_coords = []
                 
