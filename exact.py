@@ -70,29 +70,49 @@ class Exact :
             self.problem.pos_step):
                 defense = [x, y]
                 adj_line = [0] * len(scoring_kicks)
-                if defense not in possible_defs:
+                if self.dist(possible_defs, defense, self.problem.robot_radius):
+                    if self.dist(self.opponents_pos, defense, self.problem.robot_radius):
+                        for kick in scoring_kicks:
+                            i = segmentCircleIntersection(kick[0],
+                            self.anotherPoint(kick[0], kick[1]), defense, self.problem.robot_radius)
+                            if not (i is None):
+                                if i[0] < goal.posts[0][0]:
+                                    adj_line[scoring_kicks.index(kick)] = 1
+                                    possible_defs.append(defense)
+                        if 1 in adj_line:
+                            self.adj_mat.append(adj_line)
+                                #self.coord_map[str(adj_line)] = [x, y]
+
+                        if (str(adj_line) in self.coord_map):
+                                    #print("ah shit, here we go again")
+                            self.coord_map[str(adj_line)].append([x, y])
+                                
+                        else:
+                            self.coord_map[str(adj_line)] = [[x,y]]
+        
+        print("matrix's size = " + str(len(self.adj_mat)) + ", " +
+        str(len(self.adj_mat[0])))
+
+    '''
+                if self.dist(possible_defs, defense, self.problem.robot_radius):
+                    if self.dist(opponents, defense, self.problem.robot_radius):
+                        for kick in scoring_kicks:
+                            i = segmentCircleIntersection(kick[0],
+                            self.anotherPoint(kick[0], kick[1]), defense, self.problem.robot_radius)
+                            if not (i is None):
+                                if i[0] < goal.posts[0][0]:
+    '''
+
+    '''
+    if defense not in possible_defs:
                     if defense not in posts:
                         if self.dist(self.opponents_pos, defense, self.problem.robot_radius):
                             for kick in scoring_kicks:
                                 if not (segmentCircleIntersection(kick[0],
                                 self.anotherPoint(kick[0], kick[1]), defense, self.problem.robot_radius)
                                 is None):
-                                    adj_line[scoring_kicks.index(kick)] = 1
-                                    possible_defs.append(defense)
-                            if 1 in adj_line:
-                                self.adj_mat.append(adj_line)
-                                self.coord_map[str(adj_line)] = [x, y]
-                                '''
-                                if (str(adj_line) in self.coord_map):
-                                    #print("ah shit, here we go again")
-                                    self.coord_map[str(adj_line)].append([x, y])
-                                
-                                else:
-                                    self.coord_map[str(adj_line)] = [[]]
-                                '''
-        
-        print("matrix's size = " + str(len(self.adj_mat)) + ", " +
-        str(len(self.adj_mat[0])))
+
+    '''
 
     # Returns true if <subset> is a dominating set, false otherwise
     def isDominating(self, subset, nbFramedShots):
@@ -118,11 +138,11 @@ class Exact :
                 if (subset[i][j] == 1):
                     domination[j] = True
 
-            coord_i = self.coord_map[str(subset[i])]
+            coord_i = self.coord_map[str(subset[i])][0]
 
             # Check if the min distance is respected between all defenders
             for j in range(i, len(subset)):
-                coord_j = self.coord_map[str(subset[j])]
+                coord_j = self.coord_map[str(subset[j])][0]
                 if i != j and math.hypot(coord_j[0] - coord_i[0], coord_j[1] - coord_i[1]) < minDist:
                     return False
 
@@ -142,6 +162,9 @@ class Exact :
         # Generate all permutations possible for this set of defenders
         all_permut = list(itertools.permutations(defenders))
 
+        # Indexes of the better coordinates
+        indexes_coords = []
+
         defenders_pos = np.zeros((len(defenders), 2))
         best_permut = []
         max_dist = sys.maxsize
@@ -149,19 +172,30 @@ class Exact :
         # Loop though all possible permutations to find the one with a minimum distance between 
         # initial defenders position and solution's defenders position
         for permut in all_permut:
+
             # Retrieve the coordinates of the defender thanks to his adjencency line
             for i in range(len(permut)):
-                defenders_pos[i] = self.coord_map[str(permut[i])]
+                defenders_pos[i] = self.coord_map[str(permut[i])][0]
+
+            #print("defenders pos:")
+            #print(defenders_pos)
+
+            '''for i in range(len(permut)):
+                coord_permut = self.coord_map[str(permut[i])]
+                for j in range(len(coord_permut)):
+                    defenders_pos[j] = 
+            '''
             # Compute the maximum distance that a solution's defender will have to travel to place himself
             dist = maxDist(self.problem.defenders, defenders_pos.transpose())
             # Check if this permutation is the best for now
             if dist < max_dist:
                 max_dist = dist
                 best_permut = permut
-                #print("new max dist: " + str(max_dist))
+                indexes_coords = [0, 0, 0]
+                print("new max dist: " + str(max_dist))
         
         #print()
-        return (best_permut, max_dist)
+        return (best_permut, max_dist, indexes_coords)
 
     def solve_noExtension(self):
         # Try to find a minimal dominating set among all possible subsets of blocking positions
@@ -216,7 +250,7 @@ class Exact :
                 if (self.isDominating(s, len(self.adj_mat[0]))):
                     #print("test")
                     #print(s)
-                    (optimalDominantSet, dist) = self.initialDefendersPosition(s)
+                    (optimalDominantSet, dist, indexes_coords) = self.initialDefendersPosition(s)
                     if (dist < max_dist):
                         max_dist = dist
                         minimalDominantSet = optimalDominantSet
@@ -224,7 +258,7 @@ class Exact :
                 
             i += 1
 
-        return minimalDominantSet
+        return (minimalDominantSet, indexes_coords)
 
     def solve_minDist(self):
         # Try to find a minimal dominating set among all possible subsets of blocking positions
@@ -266,22 +300,25 @@ class Exact :
     def solve(self):
         self.buildAdjacencyMatrix()
         minimalDominantSet = ([])
+        indexes_coords = []
                 
         # Pick the correct algorithm to solve the problem depending on the parameters of the problem
         if (not self.problem.min_dist is None):
             minimalDominantSet = self.solve_minDist()
         elif (not self.problem.defenders is None):
-            minimalDominantSet = self.solve_initialPosDefenders()
+            (minimalDominantSet, indexes_coords) = self.solve_initialPosDefenders()
         else:
             minimalDominantSet = self.solve_noExtension()
 
         if (minimalDominantSet != ([])):
+            #domination = [False] * nbFramedShots
+            indexes_coords = [0] * len(minimalDominantSet)
             print("Le sous ensemble minimal est ")
             print(minimalDominantSet)
             print("Cela correspond aux positions ")
-            for s in minimalDominantSet:
-                print(self.coord_map[str(s)])
-            buildSolutionFile(self, minimalDominantSet)
+            for i in range(len(minimalDominantSet)):
+                print(self.coord_map[str(minimalDominantSet[i])][indexes_coords[i]])
+            buildSolutionFile(self, minimalDominantSet, indexes_coords)
        
         else:
             print("Il n'y a pas de sous ensemble dominant! C'est dommage")
