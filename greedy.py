@@ -1,21 +1,21 @@
 import numpy as np
 import math
 import time
-from geometry import segmentCircleIntersection
+from geometry import *
 from operator import add
 
 SOLUTION_FILE_NAME = "solution.json"
 
 class Glouton:
     def __init__(self, problem):
-        self.adj_mat = []
+        self.adj_mat = list()
         self.problem = problem
         self.coord_map = dict()
 
     def anotherPoint(self, old_point, angle):
         x = 1000 * math.cos(angle)
         y = 1000 * math.sin(angle)
-        new_point = np.array(list(map(add, old_point, [x, y])))
+        new_point = np.array([old_point[0] + x, old_point[1] + y])
         return new_point
 
     def frange(self, start, stop, step):
@@ -33,6 +33,7 @@ class Glouton:
         return result
 
     def buildAdjacencyMatrix(self):
+
         opponents = []
         for i in range(len(self.problem.opponents[0])):
             opponents.append([self.problem.opponents[0][i], self.problem.opponents[1][i]])
@@ -59,25 +60,26 @@ class Glouton:
                             scoring_kicks.append([opponent, direction + math.pi])
                 direction += self.problem.theta_step
 
-        possible_defs = []
+        self.possible_defs = []
         for x in self.frange(self.problem.field_limits[0][0], self.problem.field_limits[0][1],
         self.problem.pos_step):
             for y in self.frange(self.problem.field_limits[1][0], self.problem.field_limits[1][1],
             self.problem.pos_step):
                 defense = [x, y]
                 adj_line = [0] * len(scoring_kicks)
-                if defense not in possible_defs:
-                    if defense not in posts:
-                        if self.dist(opponents, defense, self.problem.robot_radius):
-                            for kick in scoring_kicks:
-                                if not (segmentCircleIntersection(kick[0],
-                                self.anotherPoint(kick[0], kick[1]), defense, self.problem.robot_radius)
-                                is None):
+                if self.dist(self.possible_defs, defense, self.problem.robot_radius):
+                    if self.dist(opponents, defense, self.problem.robot_radius):
+                        for kick in scoring_kicks:
+                            i = segmentCircleIntersection(kick[0],
+                            self.anotherPoint(kick[0], kick[1]), defense, self.problem.robot_radius)
+                            if not (i is None):
+                                 if i[0] < goal.posts[0][0]:
                                     adj_line[scoring_kicks.index(kick)] = 1
-                                    possible_defs.append(defense)
-                            if 1 in adj_line:
-                                self.adj_mat.append(adj_line)
-                                self.coord_map[str(adj_line)] = (x, y)
+                                    self.possible_defs.append(defense)
+                                    
+                        if 1 in adj_line:
+                            self.adj_mat.append(adj_line)
+                            self.coord_map[str(adj_line)] = (x, y)
 
     # Returns true if <subset> is a dominating set, false otherwise
     def isDominating(self, subset, nbPotentialGoals):
@@ -95,13 +97,15 @@ class Glouton:
 
     def solve(self):
         self.buildAdjacencyMatrix()
-        print("mat adj done")
+        print(self.adj_mat)
 
         degrees = ([])
         dominating_set = ([])
 
         for i in range(len(self.adj_mat)):
             degrees.append(self.adj_mat[i].count(1))
+
+            print(len(dominating_set))
 
         while (not self.isDominating(dominating_set, len(self.adj_mat[0]))) and (len(dominating_set) < len(self.adj_mat)):
             s = degrees.index(max(degrees))
@@ -126,8 +130,7 @@ class Glouton:
             for s in dominating_set:
                 print(self.coord_map[str(s)])
             self.buildSolutionFile(dominating_set)
-
-
+            
     def buildSolutionFile(self, minSet):
         solFile = open(SOLUTION_FILE_NAME, "w+")
         solFile.write("{\"defenders\":[")

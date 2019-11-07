@@ -70,13 +70,13 @@ class Exact :
             self.problem.pos_step):
                 defense = [x, y]
                 adj_line = [0] * len(scoring_kicks)
-                if defense not in possible_defs:
-                    if defense not in posts:
-                        if self.dist(opponents, defense, self.problem.robot_radius):
-                            for kick in scoring_kicks:
-                                if not (segmentCircleIntersection(kick[0],
-                                self.anotherPoint(kick[0], kick[1]), defense, self.problem.robot_radius)
-                                is None):
+                if self.dist(possible_defs, defense, self.problem.robot_radius):
+                    if self.dist(opponents, defense, self.problem.robot_radius):
+                        for kick in scoring_kicks:
+                            i = segmentCircleIntersection(kick[0],
+                            self.anotherPoint(kick[0], kick[1]), defense, self.problem.robot_radius)
+                            if not (i is None):
+                                if i[0] < goal.posts[0][0]:
                                     adj_line[scoring_kicks.index(kick)] = 1
                                     possible_defs.append(defense)
                             if 1 in adj_line:
