@@ -194,102 +194,50 @@ class Exact :
  
         return True
 
-    def initialDefendersPosition_rec(self, possible_coords, def_num, sol, i, n):
-        if (i > n):
-            print(sol)
-            return
-
-        print(possible_coords[0][i])
-
-        for i in range(len(possible_coords[0])):
-            for j in range(len(possible_coords[1])):
-                for k in range(len(possible_coords[2])):
-                    print("(" + str(possible_coords[0][i]) + "," + str(possible_coords[1][j]) + "," + str(possible_coords[2][k]) + ")")
-
-        
-
-
-    def initialDefendersPosition(self, defenders):
-        # Generate all permutations possible for this set of defenders
-        all_permut = list(itertools.permutations(defenders))
-
+    # Returns the best possible positions of this set of defenders
+    def getBestDefendersPosition(self, defenders):
         # Store the possible cooordinates of each defender according to their adjacency line
         possible_coords = [[] for i in range(len(defenders))]
 
-        # Number of coordinates possible for each defender according to their adjacency line
+        # Number of possible coordinates for each defender according to their adjacency line
         nb_coord = []
 
-        print("nombre de coordonnees possible avec ces défenseurs")
+        # Search all the possible coordinates that match the adjacency lines of the defenders
         for d in range(len(defenders)):
-            print("défenseur " + str(d) + ": ")
             defender = defenders[d]
             for coord in self.coord_map[str(defender)]:
-                print(coord)
                 possible_coords[d].append(coord)
             nb_coord.append(len(possible_coords[d]))
-            print()
 
-        #print("len all_permut")
-        #print(len(all_permut))
-
-        #print(possible_coords)
-        
         defenders_pos = np.zeros((len(defenders), 2))
-
-        print(len(possible_coords[0]))
-
-        # j numéro défenseur
-        # k numéro coordonnées
-        for i in range(len(possible_coords[0])):
-            defenders_pos[0] = possible_coords[0][i]
-            for j in range(1, len(defenders)):
-                for k in range(len(possible_coords[j])):
-                    #print("pos: " + str(possible_coords[j][k]))
-                    defenders_pos[j] = possible_coords[j][k]
-
-                print("defenders_pos: " + str(defenders_pos))
-
-        print("nb_coord")
-        print(nb_coord)
+        best_defenders_pos = []
+        max_dist = sys.maxsize
 
         numLoops = 1
         for i in range(len(defenders)):
             numLoops *= len(possible_coords[i])
 
-        print("numloop: " + str(numLoops))
-
+        # Fill an array with all possible combinations between the possible coordinates
         for i in range(numLoops):
             for j in range(len(defenders)):
-                print(str(possible_coords[j][i % nb_coord[j]]) )
-            
-        
-        
-        
-        
-        # Indexes of the better coordinates 
-        indexes_coords = []
-        
-        best_permut = []
-        max_dist = sys.maxsize
+                defenders_pos[j] = possible_coords[j][i % nb_coord[j]]
 
-        # Loop though all possible permutations to find the one with a minimum distance between 
-        # initial defenders position and solution's defenders position
-        for permut in all_permut:
+            # Generate all permutations possible for this set of defenders positions
+            all_permut = np.array(list(itertools.permutations(defenders_pos)))
 
-            # Retrieve the coordinates of the defender thanks to his adjencency line
-            for i in range(len(permut)):
-                defenders_pos[i] = self.coord_map[str(permut[i])][0]
+            # Loop though all possible permutations to find the one with a minimum distance between 
+            # initial defenders position and solution's defenders position
+            for permut in all_permut:
+                # Compute the maximum distance that a solution's defender will have to travel to place himself
+                dist = maxDist(self.problem.defenders, permut.transpose())
 
-            # Compute the maximum distance that a solution's defender will have to travel to place himself
-            dist = maxDist(self.problem.defenders, defenders_pos.transpose())
-            # Check if this permutation is the best for now
-            if dist < max_dist:
-                max_dist = dist
-                best_permut = permut
-                indexes_coords = [0, 0, 0]
-                #print("new max dist: " + str(max_dist))
-        
-        return (best_permut, max_dist, indexes_coords)
+                # Check if this permutation is the best for now
+                if dist < max_dist:
+                    max_dist = dist
+                    best_defenders_pos = permut
+                    print("new max dist: " + str(max_dist))
+
+        return (max_dist, best_defenders_pos)
 
     def solve_noExtension(self):
         # Try to find a minimal dominating set among all possible subsets of blocking positions
@@ -329,7 +277,7 @@ class Exact :
 
     def solve_initialPosDefenders(self):
         # Try to find a minimal dominating set among all possible subsets of blocking positions
-        minimalDominantSet = ([])
+        defenders_pos = []
         i = 1
         solutionFound = False
         max_dist = sys.maxsize
@@ -342,17 +290,25 @@ class Exact :
             for s in subsets:
                 # Break the loop if a dominating set is found
                 if (self.isDominating(s, len(self.adj_mat[0]))):
-                    #print("test")
-                    #print(s)
-                    (optimalDominantSet, dist, indexes_coords) = self.initialDefendersPosition(s)
+                    (dist, defenders_pos) = self.getBestDefendersPosition(s)
                     if (dist < max_dist):
                         max_dist = dist
-                        minimalDominantSet = optimalDominantSet
                     solutionFound = True
                 
             i += 1
 
-        return (minimalDominantSet, indexes_coords)
+        print("best defenders position: ")
+        print(defenders_pos)
+        
+        solFile = open(SOLUTION_FILE_NAME, "w+")
+        solFile.write("{\"defenders\":[")
+        for i in range(len(defenders_pos)):
+            coordinates = [ defenders_pos[i][0], defenders_pos[i][1] ]
+            solFile.write("[" + str(coordinates[0]) + "," + str(coordinates[1]) + "]")
+            if i < len(defenders_pos) - 1:
+                solFile.write(",")
+        solFile.write("]}")
+        solFile.close()
 
     def solve_minDist(self):
         # Try to find a minimal dominating set among all possible subsets of blocking positions
@@ -400,20 +356,21 @@ class Exact :
         if (not self.problem.min_dist is None):
             minimalDominantSet = self.solve_minDist()
         elif (not self.problem.defenders is None):
-            (minimalDominantSet, indexes_coords) = self.solve_initialPosDefenders()
+            self.solve_initialPosDefenders()
         else:
             minimalDominantSet = self.solve_noExtension()
 
-        if (minimalDominantSet != ([])):
-            #domination = [False] * nbFramedShots
-            indexes_coords = [0] * len(minimalDominantSet)
-            print("Le sous ensemble minimal est ")
-            print(minimalDominantSet)
-            print("Cela correspond aux positions ")
-            for i in range(len(minimalDominantSet)):
-                print(self.coord_map[str(minimalDominantSet[i])][indexes_coords[i]])
-            buildSolutionFile(self, minimalDominantSet, indexes_coords)
-       
-        else:
-            print("Il n'y a pas de sous ensemble dominant! C'est dommage")
+        # The function solving the initial defenders problem build a solution file on its own
+        if (self.problem.defenders is None):
+            if (minimalDominantSet != ([])):
+                indexes_coords = [0] * len(minimalDominantSet)
+                print("Le sous ensemble minimal est ")
+                print(minimalDominantSet)
+                print("Cela correspond aux positions ")
+                for i in range(len(minimalDominantSet)):
+                    print(self.coord_map[str(minimalDominantSet[i])][indexes_coords[i]])
+                buildSolutionFile(self, minimalDominantSet, indexes_coords)
+        
+            else:
+                print("Il n'y a pas de sous ensemble dominant! C'est dommage")
 
