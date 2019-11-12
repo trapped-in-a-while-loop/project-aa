@@ -3,11 +3,11 @@ import matplotlib.pyplot as plt
 
 SOLUTION_FILE_NAME = "solution.json"
 
-def buildSolutionFile(exact, minSet, indexes_coords):
+def buildSolutionFile(exact, minSet):
     solFile = open(SOLUTION_FILE_NAME, "w+")
     solFile.write("{\"defenders\":[")
     for i in range(len(minSet)):
-        coordinates = exact.coord_map[str(minSet[i])][indexes_coords[i]]
+        coordinates = exact.coord_map[str(minSet[i])][0]
         solFile.write("[" + str(coordinates[0]) + "," + str(coordinates[1]) + "]")
         if i < len(minSet) - 1:
             solFile.write(",")

@@ -15,6 +15,9 @@ class Exact :
         self.scoring_kicks = []
         self.opponents_pos = []
         self.possible_defs = []
+
+        # Key : adjacency line of a vertex
+        # Value : list of possible coordinates matching this adjacency line
         self.coord_map = dict()
 
     def anotherPoint(self, old_point, angle):
@@ -81,10 +84,8 @@ class Exact :
                                     possible_defs.append(defense)
                         if 1 in adj_line:
                             self.adj_mat.append(adj_line)
-                             #self.coord_map[str(adj_line)] = [x, y]
 
                             if (str(adj_line) in self.coord_map):
-                                #print("ah shit, here we go again")
                                 self.coord_map[str(adj_line)].append([x, y])
                                     
                             else:
@@ -237,18 +238,21 @@ class Exact :
                     best_defenders_pos = permut
                     print("new max dist: " + str(max_dist))
 
-        return (max_dist, best_defenders_pos)
+        return best_defenders_pos
 
     def solve_noExtension(self):
         # Try to find a minimal dominating set among all possible subsets of blocking positions
         minimalDominantSet = ([])
+
+        # Size of the dominating subset we are looking for
         cpt = 0
+
         solutionFound = False
 
         while (not solutionFound and cpt < len(self.adj_mat)+1) :
             print("SEARCHING FOR SUBSETS OF SIZE " + str(cpt))
 
-            # Check if each subset's combination of size <cpt> is a dominanting set
+            # Check if each subset's combination of size <cpt> is a dominating set
             pool = tuple(self.adj_mat)
             n = len(pool)
             if cpt > n:
@@ -256,9 +260,10 @@ class Exact :
             indices = list(range(cpt))
 
             while True:
-                dominating_set = tuple(pool[i] for i in indices)
-                if (self.isDominating(dominating_set, len(self.adj_mat[0]))):
-                    minimalDominantSet = dominating_set
+                subset = tuple(pool[i] for i in indices)
+                # If this subset is a dominating set, we found a minimal dominating set, stop the function
+                if (self.isDominating(subset, len(self.adj_mat[0]))):
+                    minimalDominantSet = subset
                     solutionFound = True
                     break
 
@@ -274,32 +279,40 @@ class Exact :
             cpt += 1
 
         return minimalDominantSet
-
+    
     def solve_initialPosDefenders(self):
-        # Try to find a minimal dominating set among all possible subsets of blocking positions
+        # Try to find a minimal dominating set among subsets of blocking positions with the same size as the number of defenders
         defenders_pos = []
-        i = 1
-        solutionFound = False
-        max_dist = sys.maxsize
 
-        while (not solutionFound and i < len(self.adj_mat)+1) :
-            print("SEARCHING FOR SUBSETS OF SIZE " + str(i-1))
-            # Set of all subsets of blocking positions of size i-1 (sorted by size)
-            subsets = list(chain.from_iterable(combinations(self.adj_mat, r) for r in range(i-1, i)))
+        # Size of the dominating subset we are looking for
+        subsetSize = self.problem.getNbDefenders()
 
-            for s in subsets:
-                # Break the loop if a dominating set is found
-                if (self.isDominating(s, len(self.adj_mat[0]))):
-                    (dist, defenders_pos) = self.getBestDefendersPosition(s)
-                    if (dist < max_dist):
-                        max_dist = dist
-                    solutionFound = True
-                
-            i += 1
+        print("SEARCHING FOR SUBSETS OF SIZE " + str(self.problem.getNbDefenders()))
 
-        print("best defenders position: ")
-        print(defenders_pos)
+        # Check if each subset's combination that has the same size as the number of defenders is a dominating set
+        pool = tuple(self.adj_mat)
+        n = len(pool)
+        if subsetSize > n:
+            return
+        indices = list(range(subsetSize))
+
+        while True:
+            subset = tuple(pool[i] for i in indices)
+            if (self.isDominating(subset, len(self.adj_mat[0]))):
+                # Look for the best defenders' positions matching this adjacency line
+                defenders_pos = self.getBestDefendersPosition(subset)
+                break
+
+            for i in reversed(range(subsetSize)):
+                if indices[i] != i + n - subsetSize:
+                    break
+            else:
+                break   # previously return
+            indices[i] += 1
+            for j in range(i+1, subsetSize):
+                indices[j] = indices[j-1] + 1
         
+        # Write in the solution file
         solFile = open(SOLUTION_FILE_NAME, "w+")
         solFile.write("{\"defenders\":[")
         for i in range(len(defenders_pos)):
@@ -309,11 +322,42 @@ class Exact :
                 solFile.write(",")
         solFile.write("]}")
         solFile.close()
+    
+    '''
+    def solve_initialPosDefenders(self):
+        # Try to find a minimal dominating set among subsets of blocking positions with the same size as the number of defenders
+        defenders_pos = []
+
+        print("SEARCHING FOR SUBSETS OF SIZE " + str(self.problem.getNbDefenders()))
+        # Set of all subsets of blocking positions with the same size as the number of defenders
+        subsets = list((combinations(self.adj_mat, self.problem.getNbDefenders())))
+
+        for s in subsets:
+            # Break the loop if a dominating set is found
+            if (self.isDominating(s, len(self.adj_mat[0]))):
+                # Look for the best defenders' positions matching this adjacency line
+                defenders_pos = self.getBestDefendersPosition(s)
+                break
+        
+        # Write in the solution file
+        solFile = open(SOLUTION_FILE_NAME, "w+")
+        solFile.write("{\"defenders\":[")
+        for i in range(len(defenders_pos)):
+            coordinates = [ defenders_pos[i][0], defenders_pos[i][1] ]
+            solFile.write("[" + str(coordinates[0]) + "," + str(coordinates[1]) + "]")
+            if i < len(defenders_pos) - 1:
+                solFile.write(",")
+        solFile.write("]}")
+        solFile.close()
+    '''
 
     def solve_minDist(self):
         # Try to find a minimal dominating set among all possible subsets of blocking positions
         minimalDominantSet = ([])
+
+        # Size of the dominating subset we are looking for
         cpt = 0
+        
         solutionFound = False
 
         while (not solutionFound and cpt < len(self.adj_mat)+1) :
@@ -328,9 +372,10 @@ class Exact :
             indices = list(range(cpt))
 
             while True:
-                dominating_set = tuple(pool[i] for i in indices)
-                if (self.isDominatingAndRespectMinDist(dominating_set, len(self.adj_mat[0]), self.problem.min_dist)):
-                    minimalDominantSet = dominating_set
+                subset = tuple(pool[i] for i in indices)
+                # If this subset is a dominating set and it respects the minimum distance, we found a minimal dominating set, stop the function
+                if (self.isDominatingAndRespectMinDist(subset, len(self.adj_mat[0]), self.problem.min_dist)):
+                    minimalDominantSet = subset
                     solutionFound = True
                     break
 
@@ -350,7 +395,6 @@ class Exact :
     def solve(self):
         self.buildAdjacencyMatrix2()
         minimalDominantSet = ([])
-        indexes_coords = []
                 
         # Pick the correct algorithm to solve the problem depending on the parameters of the problem
         if (not self.problem.min_dist is None):
@@ -363,13 +407,12 @@ class Exact :
         # The function solving the initial defenders problem build a solution file on its own
         if (self.problem.defenders is None):
             if (minimalDominantSet != ([])):
-                indexes_coords = [0] * len(minimalDominantSet)
                 print("Le sous ensemble minimal est ")
                 print(minimalDominantSet)
                 print("Cela correspond aux positions ")
                 for i in range(len(minimalDominantSet)):
-                    print(self.coord_map[str(minimalDominantSet[i])][indexes_coords[i]])
-                buildSolutionFile(self, minimalDominantSet, indexes_coords)
+                    print(self.coord_map[str(minimalDominantSet[i])][0])
+                buildSolutionFile(self, minimalDominantSet)
         
             else:
                 print("Il n'y a pas de sous ensemble dominant! C'est dommage")
