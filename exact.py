@@ -76,24 +76,23 @@ class Exact :
                 if self.dist(possible_defs, defense, self.problem.robot_radius):
                     if self.dist(self.opponents_pos, defense, self.problem.robot_radius):
                         for kick in scoring_kicks:
-                            i = segmentCircleIntersection(kick[0],
-                            self.anotherPoint(kick[0], kick[1]), defense, self.problem.robot_radius)
-                            if not (i is None):
-                                if i[0] < goal.posts[0][0]:
+                            if not (segmentCircleIntersection(kick[0],
+                            self.anotherPoint(kick[0], kick[1]), defense, self.problem.robot_radius) is None):
+                                if segmentCircleIntersection(np.array(posts[0]), np.array(posts[1]),
+                                defense, self.problem.robot_radius) is None:
                                     adj_line[scoring_kicks.index(kick)] = 1
-                                    possible_defs.append(defense)
+                                    self.possible_defs.append(defense)
                         if 1 in adj_line:
                             self.adj_mat.append(adj_line)
 
                             if (str(adj_line) in self.coord_map):
                                 self.coord_map[str(adj_line)].append([x, y])
-                                    
+                                            
                             else:
                                 self.coord_map[str(adj_line)] = [[x,y]]
         
         print("matrix's size = " + str(len(self.adj_mat)) + ", " +
         str(len(self.adj_mat[0])))
-
         
     def buildAdjacencyMatrix2(self):
         for i in range(len(self.problem.opponents[0])):
@@ -139,10 +138,8 @@ class Exact :
                                     possible_defs.append(defense)
                             if 1 in adj_line:
                                 self.adj_mat.append(adj_line)
-                                #self.coord_map[str(adj_line)] = [x, y]
 
                                 if (str(adj_line) in self.coord_map):
-                                    #print("ah shit, here we go again")
                                     self.coord_map[str(adj_line)].append([x, y])
                                             
                                 else:
@@ -175,17 +172,18 @@ class Exact :
                 if (subset[i][j] == 1):
                     domination[j] = True
 
+            # Coordinates 
             coord_i = self.coord_map[str(subset[i])][0]
 
             # Check if the min distance is respected between all defenders
             for j in range(i, len(subset)):
                 coord_j = self.coord_map[str(subset[j])][0]
-                if i != j and math.hypot(coord_j[0] - coord_i[0], coord_j[1] - coord_i[1]) < minDist:
+                if i != j and math.hypot(coord_j[0] - coord_i[0], coord_j[1] - coord_i[1]) <= minDist + 1e-15:
                     return False
 
              # Check if the min distance isrespected between defenders and opponents
             for o in self.opponents_pos:
-                if math.hypot(o[0] - coord_i[0], o[1] - coord_i[1]) < minDist:
+                if math.hypot(o[0] - coord_i[0], o[1] - coord_i[1]) <= minDist + 1e-15:
                     return False
 
         # Check if it's a dominating set
@@ -311,17 +309,23 @@ class Exact :
             indices[i] += 1
             for j in range(i+1, subsetSize):
                 indices[j] = indices[j-1] + 1
-        
-        # Write in the solution file
-        solFile = open(SOLUTION_FILE_NAME, "w+")
-        solFile.write("{\"defenders\":[")
-        for i in range(len(defenders_pos)):
-            coordinates = [ defenders_pos[i][0], defenders_pos[i][1] ]
-            solFile.write("[" + str(coordinates[0]) + "," + str(coordinates[1]) + "]")
-            if i < len(defenders_pos) - 1:
-                solFile.write(",")
-        solFile.write("]}")
-        solFile.close()
+
+        if (defenders_pos == []):
+            print("there is no solution with this configuration :-(")
+            return False
+
+        else:
+            # Write in the solution file
+            solFile = open(SOLUTION_FILE_NAME, "w+")
+            solFile.write("{\"defenders\":[")
+            for i in range(len(defenders_pos)):
+                coordinates = [ defenders_pos[i][0], defenders_pos[i][1] ]
+                solFile.write("[" + str(coordinates[0]) + "," + str(coordinates[1]) + "]")
+                if i < len(defenders_pos) - 1:
+                    solFile.write(",")
+            solFile.write("]}")
+            solFile.close()
+            return True
     
     '''
     def solve_initialPosDefenders(self):
@@ -393,7 +397,7 @@ class Exact :
         return minimalDominantSet
 
     def solve(self):
-        self.buildAdjacencyMatrix2()
+        self.buildAdjacencyMatrix()
         minimalDominantSet = ([])
                 
         # Pick the correct algorithm to solve the problem depending on the parameters of the problem

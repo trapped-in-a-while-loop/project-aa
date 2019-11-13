@@ -1,6 +1,7 @@
 import numpy as np
 import math
 import time
+from util import buildSolutionFile, SOLUTION_FILE_NAME
 from geometry import segmentCircleIntersection
 from operator import add
 
@@ -12,6 +13,8 @@ class Glouton:
         self.problem = problem
         self.coord_map = dict()
         self.degrees = ([])
+        self.opponents_pos = []
+        self.possible_defs = []
 
     def anotherPoint(self, old_point, angle):
         x = 1000 * math.cos(angle)
@@ -34,9 +37,8 @@ class Glouton:
         return result
 
     def buildAdjacencyMatrix(self):
-        opponents = []
         for i in range(len(self.problem.opponents[0])):
-            opponents.append([self.problem.opponents[0][i], self.problem.opponents[1][i]])
+            self.opponents_pos.append([self.problem.opponents[0][i], self.problem.opponents[1][i]])
 
         posts = []
         for i in range(len(self.problem.goals)):
@@ -60,30 +62,32 @@ class Glouton:
                             scoring_kicks.append([opponent, direction + math.pi])
                 direction += self.problem.theta_step
 
-        possible_defs = []
         for x in self.frange(self.problem.field_limits[0][0], self.problem.field_limits[0][1],
         self.problem.pos_step):
             for y in self.frange(self.problem.field_limits[1][0], self.problem.field_limits[1][1],
             self.problem.pos_step):
                 defense = [x, y]
                 adj_line = [0] * len(scoring_kicks)
-                if self.dist(possible_defs, defense, self.problem.robot_radius):
-                    if self.dist(opponents, defense, self.problem.robot_radius):
+                if self.dist(self.possible_defs, defense, self.problem.robot_radius):
+                    if self.dist(self.opponents_pos, defense, self.problem.robot_radius):
                         for kick in scoring_kicks:
-                            i = segmentCircleIntersection(kick[0],
-                            self.anotherPoint(kick[0], kick[1]), defense, self.problem.robot_radius)
-                            if not (i is None):
-                                if i[0] < goal.posts[0][0]:
+                            if not (segmentCircleIntersection(kick[0],
+                            self.anotherPoint(kick[0], kick[1]), defense, self.problem.robot_radius) is None):
+                                if segmentCircleIntersection(np.array(posts[0]), np.array(posts[1]),
+                                defense, self.problem.robot_radius) is None:
                                     adj_line[scoring_kicks.index(kick)] = 1
-                                    possible_defs.append(defense)
+                                    self.possible_defs.append(defense)
                         if 1 in adj_line:
                             self.adj_mat.append(adj_line)
-                            self.degrees.append(adj_line.count(1))
-                            self.coord_map[str(adj_line)] = (x, y)
 
+                            if (str(adj_line) in self.coord_map):
+                                self.coord_map[str(adj_line)].append([x, y])
+                                            
+                            else:
+                                self.coord_map[str(adj_line)] = [[x,y]]
+        
         print("matrix's size = " + str(len(self.adj_mat)) + ", " +
         str(len(self.adj_mat[0])))
-        print(self.adj_mat)
 
     # Returns true if <subset> is a dominating set, false otherwise
     def isDominating(self, subset, nbPotentialGoals):
@@ -101,17 +105,21 @@ class Glouton:
 
     def solve(self):
         self.buildAdjacencyMatrix()
-
-        #degrees = ([])
         dominating_set = ([])
 
-        #for i in range(len(self.adj_mat)):
-        #    degrees.append(self.adj_mat[i].count(1))
+        for i in range(len(self.adj_mat)):
+            self.degrees.append(self.adj_mat[i].count(1))
 
+        # 
         while (not self.isDominating(dominating_set, len(self.adj_mat[0]))) and (len(dominating_set) < len(self.adj_mat)):
+            # s = vertex with the highest degree
             s = self.degrees.index(max(self.degrees))
+
+            # if this vertex is not in the dominating set, add it
             if not self.adj_mat[s] in dominating_set:
                 dominating_set.append(self.adj_mat[s])
+
+            # Set its degree to 0 so it won't be picked again
             self.degrees[s] = 0
 
             for i in range(len(self.adj_mat[s])):
@@ -130,16 +138,4 @@ class Glouton:
             print("Cela correspond aux positions ")
             for s in dominating_set:
                 print(self.coord_map[str(s)])
-            self.buildSolutionFile(dominating_set)
-
-
-    def buildSolutionFile(self, minSet):
-        solFile = open(SOLUTION_FILE_NAME, "w+")
-        solFile.write("{\"defenders\":[")
-        for i in range(len(minSet)):
-            coordinates = self.coord_map[str(minSet[i])]
-            solFile.write("[" + str(coordinates[0]) + "," + str(coordinates[1]) + "]")
-            if i < len(minSet) - 1:
-                solFile.write(",")
-        solFile.write("]}")
-        solFile.close()
+            buildSolutionFile(self, dominating_set)
