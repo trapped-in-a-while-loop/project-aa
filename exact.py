@@ -73,12 +73,12 @@ class Exact :
                 if self.dist(possible_defs, defense, self.problem.robot_radius):
                     if self.dist(opponents, defense, self.problem.robot_radius):
                         for kick in scoring_kicks:
-                            i = segmentCircleIntersection(kick[0],
-                            self.anotherPoint(kick[0], kick[1]), defense, self.problem.robot_radius)
-                            if not (i is None):
-                                if i[0] < goal.posts[0][0]:
+                            if not (segmentCircleIntersection(kick[0],
+                            self.anotherPoint(kick[0], kick[1]), defense, self.problem.robot_radius) is None):
+                                if segmentCircleIntersection(np.array(posts[0]), np.array(posts[1]),
+                                defense, self.problem.robot_radius) is None:
                                     adj_line[scoring_kicks.index(kick)] = 1
-                                    possible_defs.append(defense)
+                                    self.possible_defs.append(defense)
                             if 1 in adj_line:
                                 self.adj_mat.append(adj_line)
                                 self.coord_map[str(adj_line)] = (x, y)
