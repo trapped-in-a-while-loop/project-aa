@@ -11,10 +11,15 @@ class Glouton:
     def __init__(self, problem):
         self.adj_mat = []
         self.problem = problem
-        self.coord_map = dict()
-        self.degrees = ([])
         self.opponents_pos = []
         self.possible_defs = []
+
+        # Key : adjacency line of a vertex
+        # Value : list of possible coordinates matching this adjacency line
+        self.coord_map = dict()
+
+        # Store the degrees of every vertex. The index corresponds to the index in the adjacency matrix
+        self.degrees = ([])
 
     def anotherPoint(self, old_point, angle):
         x = 1000 * math.cos(angle)
@@ -110,8 +115,7 @@ class Glouton:
         for i in range(len(self.adj_mat)):
             self.degrees.append(self.adj_mat[i].count(1))
 
-        # 
-        while (not self.isDominating(dominating_set, len(self.adj_mat[0]))) and (len(dominating_set) < len(self.adj_mat)):
+        while (not self.isDominating(dominating_set, len(self.adj_mat[0])) and len(dominating_set) < len(self.adj_mat)):
             # s = vertex with the highest degree
             s = self.degrees.index(max(self.degrees))
 
