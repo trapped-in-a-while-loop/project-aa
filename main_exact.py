@@ -21,9 +21,14 @@ if (len(sys.argv) == 3):
     solution_path = sys.argv[2]
 
 else:
+    start_time = time.clock()
+
     e = Exact(problem)
     e.solve()
     solution_path = SOLUTION_FILE_NAME
+
+    print("fin de tout")
+    print(time.clock() - start_time, "seconds")
     
 with open(solution_path) as solution_file:
     solution = Solution(json.load(solution_file))
