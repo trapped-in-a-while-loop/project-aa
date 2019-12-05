@@ -27,11 +27,14 @@ class Glouton:
         new_point = np.array(list(map(add, old_point, [x, y])))
         return new_point
 
-    def frange(self, start, stop, step):
+    def frange(self, start, min, max, step):
         i = start
-        while i < stop:
-            yield i
+        result = list()
+        while i < max:
+            if (i > min):
+                result.append(i)
             i += step
+        return result
 
     def dist(self, opponents, defense, robot_radius):
         result = True
@@ -42,6 +45,9 @@ class Glouton:
         return result
 
     def buildAdjacencyMatrix(self):
+        field_min = [min(np.concatenate((self.problem.opponents[0], self.problem.goals[0].posts[0]))), min(np.concatenate((self.problem.opponents[1], self.problem.goals[0].posts[1])))]
+        field_max = [max(np.concatenate((self.problem.opponents[0], self.problem.goals[0].posts[0]))), max(np.concatenate((self.problem.opponents[1], self.problem.goals[0].posts[1])))]
+
         for i in range(len(self.problem.opponents[0])):
             self.opponents_pos.append([self.problem.opponents[0][i], self.problem.opponents[1][i]])
 
@@ -51,6 +57,7 @@ class Glouton:
             self.problem.goals[i].posts[1][0]])
             posts.append([self.problem.goals[i].posts[0][1],
             self.problem.goals[i].posts[1][1]])
+
 
         scoring_kicks = []
         for i in range(len(self.problem.opponents[0])):
@@ -67,12 +74,14 @@ class Glouton:
                             scoring_kicks.append([opponent, direction + math.pi])
                 direction += self.problem.theta_step
 
-        for x in self.frange(self.problem.field_limits[0][0], self.problem.field_limits[0][1],
-        self.problem.pos_step):
-            for y in self.frange(self.problem.field_limits[1][0], self.problem.field_limits[1][1],
-            self.problem.pos_step):
+        rangeX = self.frange(self.problem.field_limits[0][0], field_min[0], field_max[0] + self.problem.pos_step, self.problem.pos_step)
+        rangeY = self.frange(self.problem.field_limits[1][0], field_min[1], field_max[1] + self.problem.pos_step, self.problem.pos_step)
+
+        for x in rangeX:
+            for y in rangeY:
                 defense = [x, y]
                 adj_line = [0] * len(scoring_kicks)
+                #adj_line = array.array('B', [0] * len(scoring_kicks))
                 if self.dist(self.possible_defs, defense, self.problem.robot_radius):
                     if self.dist(self.opponents_pos, defense, self.problem.robot_radius):
                         for kick in scoring_kicks:
@@ -82,17 +91,17 @@ class Glouton:
                                 defense, self.problem.robot_radius) is None:
                                     adj_line[scoring_kicks.index(kick)] = 1
                                     self.possible_defs.append(defense)
+
                         if 1 in adj_line:
                             self.adj_mat.append(adj_line)
-
+    
                             if (str(adj_line) in self.coord_map):
                                 self.coord_map[str(adj_line)].append([x, y])
                                             
                             else:
                                 self.coord_map[str(adj_line)] = [[x,y]]
-        
-        print("matrix's size = " + str(len(self.adj_mat)) + ", " +
-        str(len(self.adj_mat[0])))
+
+        print("matrix's size = " + str(len(self.adj_mat)) + ", " + str(len(self.adj_mat[0])))
 
     # Returns true if <subset> is a dominating set, false otherwise
     def isDominating(self, subset, nbPotentialGoals):

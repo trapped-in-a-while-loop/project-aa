@@ -7,7 +7,6 @@ from itertools import chain, combinations
 from geometry import segmentCircleIntersection
 from operator import add
 from board import maxDist
-import time
 import array
 
 class Exact :
@@ -28,11 +27,12 @@ class Exact :
         new_point = np.array(list(map(add, old_point, [x, y])))
         return new_point
 
-    def frange(self, start, stop, step):
+    def frange(self, start, min, max, step):
         i = start
         result = list()
-        while i < stop:
-            result.append(i)
+        while i < max:
+            if (i > min):
+                result.append(i)
             i += step
         return result
 
@@ -48,11 +48,6 @@ class Exact :
         field_min = [min(np.concatenate((self.problem.opponents[0], self.problem.goals[0].posts[0]))), min(np.concatenate((self.problem.opponents[1], self.problem.goals[0].posts[1])))]
         field_max = [max(np.concatenate((self.problem.opponents[0], self.problem.goals[0].posts[0]))), max(np.concatenate((self.problem.opponents[1], self.problem.goals[0].posts[1])))]
 
-        print(field_min)
-        print(field_max)
-
-        start_time = time.clock()
-
         for i in range(len(self.problem.opponents[0])):
             self.opponents_pos.append([self.problem.opponents[0][i], self.problem.opponents[1][i]])
 
@@ -63,8 +58,6 @@ class Exact :
             posts.append([self.problem.goals[i].posts[0][1],
             self.problem.goals[i].posts[1][1]])
 
-
-        start_time_loop1 = time.clock()
 
         scoring_kicks = []
         for i in range(len(self.problem.opponents[0])):
@@ -81,17 +74,8 @@ class Exact :
                             scoring_kicks.append([opponent, direction + math.pi])
                 direction += self.problem.theta_step
 
-        print("fin de la boucle 1")
-        print(time.clock() - start_time_loop1, "seconds")
-
-        start_time_loop2 = time.clock()
-
-        rangeX = self.frange(field_min[0], field_max[0] + self.problem.pos_step, self.problem.pos_step)
-        rangeY = self.frange(field_min[1], field_max[1] + self.problem.pos_step, self.problem.pos_step)
-
-        print(len(rangeX) * len(rangeY))
-
-        print(len(scoring_kicks))
+        rangeX = self.frange(self.problem.field_limits[0][0], field_min[0], field_max[0] + self.problem.pos_step, self.problem.pos_step)
+        rangeY = self.frange(self.problem.field_limits[1][0], field_min[1], field_max[1] + self.problem.pos_step, self.problem.pos_step)
 
         for x in rangeX:
             for y in rangeY:
@@ -100,7 +84,6 @@ class Exact :
                 #adj_line = array.array('B', [0] * len(scoring_kicks))
                 if self.dist(self.possible_defs, defense, self.problem.robot_radius):
                     if self.dist(self.opponents_pos, defense, self.problem.robot_radius):
-                        #start_time_loop3 = time.clock()
                         for kick in scoring_kicks:
                             if not (segmentCircleIntersection(kick[0],
                             self.anotherPoint(kick[0], kick[1]), defense, self.problem.robot_radius) is None):
@@ -108,9 +91,6 @@ class Exact :
                                 defense, self.problem.robot_radius) is None:
                                     adj_line[scoring_kicks.index(kick)] = 1
                                     self.possible_defs.append(defense)
-
-                        #print("fin de la boucle 3")
-                        #print(time.clock() - start_time_loop3, "seconds")
 
                         if 1 in adj_line:
                             self.adj_mat.append(adj_line)
@@ -121,13 +101,7 @@ class Exact :
                             else:
                                 self.coord_map[str(adj_line)] = [[x,y]]
 
-        print("fin de la boucle 2")
-        print(time.clock() - start_time_loop2, "seconds")
-        
         print("matrix's size = " + str(len(self.adj_mat)) + ", " + str(len(self.adj_mat[0])))
-
-        print("fin de la génération")
-        print(time.clock() - start_time, "seconds")
 
     # Returns true if <subset> is a dominating set, false otherwise
     def isDominating(self, subset, nbFramedShots):

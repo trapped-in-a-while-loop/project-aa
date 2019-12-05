@@ -2,6 +2,7 @@
 import pygame
 import sys
 import json
+import time
 
 from board import *
 from exact import *
@@ -27,7 +28,6 @@ else:
     e.solve()
     solution_path = SOLUTION_FILE_NAME
 
-    print("fin de tout")
     print(time.clock() - start_time, "seconds")
     
 with open(solution_path) as solution_file:
