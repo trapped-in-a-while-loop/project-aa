@@ -1,48 +1,26 @@
 import numpy as np
 import math
-import time
+import itertools
+import sys
 from util import buildSolutionFile, SOLUTION_FILE_NAME
+from itertools import chain, combinations
 from geometry import segmentCircleIntersection
 from operator import add
+from board import maxDist
+import array
 
-SOLUTION_FILE_NAME = "solution.json"
-
-class Glouton:
+class DynProg :
     def __init__(self, problem):
-        self.adj_mat = []
         self.problem = problem
+        self.adj_mat = []
+        self.scoring_kicks = []
         self.opponents_pos = []
         self.possible_defs = []
+        self.nb_kicks_per_opponent = [0] * len(self.problem.opponents[0])
 
         # Key : adjacency line of a vertex
         # Value : list of possible coordinates matching this adjacency line
         self.coord_map = dict()
-
-        # Store the degrees of every vertex. The index corresponds to the index in the adjacency matrix
-        self.degrees = ([])
-
-    def anotherPoint(self, old_point, angle):
-        x = 1000 * math.cos(angle)
-        y = 1000 * math.sin(angle)
-        new_point = np.array(list(map(add, old_point, [x, y])))
-        return new_point
-
-    def frange(self, start, min, max, step):
-        i = start
-        result = list()
-        while i < max:
-            if (i > min):
-                result.append(i)
-            i += step
-        return result
-
-    def dist(self, opponents, defense, robot_radius):
-        result = True
-        for opponent in opponents:
-            if (math.hypot(defense[0] - opponent[0], defense[1] - opponent[1]) <
-                (robot_radius * 2)):
-                result = False
-        return result
 
     def buildAdjacencyMatrix(self):
         field_min = [min(np.concatenate((self.problem.opponents[0], self.problem.goals[0].posts[0]))), min(np.concatenate((self.problem.opponents[1], self.problem.goals[0].posts[1])))]
@@ -68,6 +46,7 @@ class Glouton:
                     if not (goal.kickResult(opponent, direction) is None):
                         """ 4 next lines to correct incomprehensible kickResult()'s
                             behavior """
+                        self.nb_kicks_per_opponent[i] += 1
                         if (direction > math.pi):
                             scoring_kicks.append([opponent, direction - math.pi])
                         elif (direction < math.pi):
@@ -102,52 +81,23 @@ class Glouton:
 
         print("matrix's size = " + str(len(self.adj_mat)) + ", " + str(len(self.adj_mat[0])))
 
-    # Returns true if <subset> is a dominating set, false otherwise
-    def isDominating(self, subset, nbPotentialGoals):
-        domination = [False] * nbPotentialGoals
+    def solve_noExtension():
+        minimalDominantSet = ([])
+        print("number of kick per opponent: ", self.nb_kicks_per_opponent)
 
-        for s in subset:
-            for j in range(nbPotentialGoals):
-                if (s[j] == 1):
-                    domination[j] = True
-
-        for d in domination:
-            if d == False:
-                return False
-        return True
+        return minimalDominantSet
 
     def solve(self):
         self.buildAdjacencyMatrix()
-        dominating_set = ([])
+        minimalDominantSet = self.solve_noExtension()
 
-        for i in range(len(self.adj_mat)):
-            self.degrees.append(self.adj_mat[i].count(1))
-
-        while (not self.isDominating(dominating_set, len(self.adj_mat[0])) and len(dominating_set) < len(self.adj_mat)):
-            # s = vertex with the highest degree
-            s = self.degrees.index(max(self.degrees))
-
-            # if this vertex is not in the dominating set, add it
-            if not self.adj_mat[s] in dominating_set:
-                dominating_set.append(self.adj_mat[s])
-
-            # Set its degree to 0 so it won't be picked again
-            self.degrees[s] = 0
-
-            for i in range(len(self.adj_mat[s])):
-                if self.adj_mat[s][i] == 1:
-                    for j in range(len(self.adj_mat)):
-                        if self.adj_mat[j][i] == 1:
-                            self.degrees[j] -= 1 
-
-        print("size dom set: " + str(len(dominating_set)))
-        for i in dominating_set:
-            print(str(i.count(1)) + ", ")
-
-        if (dominating_set != ([])):
-            print("Le sous ensemble dominant est ")
-            print(dominating_set)
+        if (minimalDominantSet != ([])):
+            print("Le sous ensemble minimal est ")
+            print(minimalDominantSet)
             print("Cela correspond aux positions ")
-            for s in dominating_set:
-                print(self.coord_map[str(s)])
-            buildSolutionFile(self, dominating_set)
+            for i in range(len(minimalDominantSet)):
+                print(self.coord_map[str(minimalDominantSet[i])][0])
+            buildSolutionFile(self, minimalDominantSet)
+        
+        else:
+            print("Il n'y a pas de sous ensemble dominant! C'est dommage")

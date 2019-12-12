@@ -81,7 +81,6 @@ class Exact :
             for y in rangeY:
                 defense = [x, y]
                 adj_line = [0] * len(scoring_kicks)
-                #adj_line = array.array('B', [0] * len(scoring_kicks))
                 if self.dist(self.possible_defs, defense, self.problem.robot_radius):
                     if self.dist(self.opponents_pos, defense, self.problem.robot_radius):
                         for kick in scoring_kicks:
