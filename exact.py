@@ -81,24 +81,25 @@ class Exact :
             for y in rangeY:
                 defense = [x, y]
                 adj_line = [0] * len(scoring_kicks)
-                if self.dist(self.possible_defs, defense, self.problem.robot_radius):
-                    if self.dist(self.opponents_pos, defense, self.problem.robot_radius):
-                        for kick in scoring_kicks:
-                            if not (segmentCircleIntersection(kick[0],
-                            self.anotherPoint(kick[0], kick[1]), defense, self.problem.robot_radius) is None):
-                                if segmentCircleIntersection(np.array(posts[0]), np.array(posts[1]),
-                                defense, self.problem.robot_radius) is None:
-                                    adj_line[scoring_kicks.index(kick)] = 1
+                if self.dist(self.opponents_pos, defense, self.problem.robot_radius):
+                    for kick in scoring_kicks:
+                        if not (segmentCircleIntersection(kick[0],
+                        self.anotherPoint(kick[0], kick[1]), defense, self.problem.robot_radius) is None):
+                            if segmentCircleIntersection(np.array(posts[0]), np.array(posts[1]),
+                            defense, self.problem.robot_radius) is None:
+                                adj_line[scoring_kicks.index(kick)] = 1
+                                if defense not in self.possible_defs:
                                     self.possible_defs.append(defense)
 
-                        if 1 in adj_line:
-                            self.adj_mat.append(adj_line)
+
+                    if 1 in adj_line:
+                        self.adj_mat.append(adj_line)
     
-                            if (str(adj_line) in self.coord_map):
-                                self.coord_map[str(adj_line)].append([x, y])
+                        if (str(adj_line) in self.coord_map):
+                            self.coord_map[str(adj_line)].append([x, y])
                                             
-                            else:
-                                self.coord_map[str(adj_line)] = [[x,y]]
+                        else:
+                            self.coord_map[str(adj_line)] = [[x,y]]
 
         print("matrix's size = " + str(len(self.adj_mat)) + ", " + str(len(self.adj_mat[0])))
 
