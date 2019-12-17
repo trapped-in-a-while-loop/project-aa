@@ -348,9 +348,9 @@ class Exact :
         # The function solving the initial defenders problem build a solution file on its own
         if (self.problem.defenders is None):
             if (minimalDominantSet != ([])):
-                print("Le sous ensemble minimal est ")
+                print("The minimal dominating set is")
                 print(minimalDominantSet)
-                print("Cela correspond aux positions ")
+                print("It matches the positions ")
                 for i in range(len(minimalDominantSet)):
                     print(self.coord_map[str(minimalDominantSet[i])][0])
                 buildSolutionFile(self, minimalDominantSet)

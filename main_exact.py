@@ -2,10 +2,10 @@
 import pygame
 import sys
 import json
-import time
 
 from board import *
 from exact import *
+from time import process_time
 
 if (len(sys.argv) != 2 and len(sys.argv) != 3):
     sys.exit("Usage: \n- To test a solution: " + sys.argv[0] 
@@ -22,13 +22,13 @@ if (len(sys.argv) == 3):
     solution_path = sys.argv[2]
 
 else:
-    start_time = time.clock()
+    start_time = process_time()
 
     e = Exact(problem)
     e.solve()
     solution_path = SOLUTION_FILE_NAME
 
-    print(time.clock() - start_time, "seconds")
+    print("Execution time: ", process_time() - start_time, "seconds")
     
 with open(solution_path) as solution_file:
     solution = Solution(json.load(solution_file))
