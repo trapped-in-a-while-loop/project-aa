@@ -92,7 +92,9 @@ class Glouton:
                                     self.possible_defs.append(defense)
 
                     if 1 in adj_line:
-                        self.adj_mat.append(adj_line)
+
+                        if (adj_line not in self.adj_mat):
+                            self.adj_mat.append(adj_line)
     
                         if (str(adj_line) in self.coord_map):
                             self.coord_map[str(adj_line)].append([x, y])
