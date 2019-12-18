@@ -169,9 +169,6 @@ class Glouton:
         nbFramedShots = len(self.adj_mat[0])
         solutionFound = True
 
-        for i in range(len(self.adj_mat)):
-            self.degrees.append(self.adj_mat[i].count(1))
-
         # Make a copy of the graph
         adj_mat_copy = self.adj_mat.copy()
 
