@@ -4,7 +4,6 @@ import time
 from util import buildSolutionFile, SOLUTION_FILE_NAME
 from geometry import segmentCircleIntersection
 from operator import add
-from time import process_time
 
 class Glouton:
     def __init__(self, problem):
@@ -44,7 +43,6 @@ class Glouton:
         return result
 
     def buildAdjacencyMatrix(self):
-        start_time = process_time()
         field_min = [min(np.concatenate((self.problem.opponents[0], self.problem.goals[0].posts[0]))), min(np.concatenate((self.problem.opponents[1], self.problem.goals[0].posts[1])))]
         field_max = [max(np.concatenate((self.problem.opponents[0], self.problem.goals[0].posts[0]))), max(np.concatenate((self.problem.opponents[1], self.problem.goals[0].posts[1])))]
 
@@ -74,8 +72,8 @@ class Glouton:
                             scoring_kicks.append([opponent, direction + math.pi])
                 direction += self.problem.theta_step
 
-        rangeX = self.frange(self.problem.field_limits[0][0], field_min[0], field_max[0] + self.problem.pos_step, self.problem.pos_step)
-        rangeY = self.frange(self.problem.field_limits[1][0], field_min[1], field_max[1] + self.problem.pos_step, self.problem.pos_step)
+        rangeX = self.frange(self.problem.field_limits[0][0], field_min[0], field_max[0], self.problem.pos_step)
+        rangeY = self.frange(self.problem.field_limits[1][0], field_min[1], field_max[1], self.problem.pos_step)
 
         for x in rangeX:
             for y in rangeY:
@@ -103,7 +101,7 @@ class Glouton:
                             self.coord_map[str(adj_line)] = [[x,y]]
 
         print("matrix's size = " + str(len(self.adj_mat)) + ", " + str(len(self.adj_mat[0])))
-        print("build matrix: ", process_time() - start_time, "seconds")
+        print(self.coord_map)
 
     # Returns true if <subset> is a dominating set, false otherwise
     def isDominating(self, subset, nbPotentialGoals):
@@ -175,15 +173,11 @@ class Glouton:
             self.degrees.append(self.adj_mat[i].count(1))
 
         # Make a copy of the graph
-        start_time = process_time()
         adj_mat_copy = self.adj_mat.copy()
-        print("copy matrix: ", process_time() - start_time, "seconds")
 
         while (not self.isDominating(dominating_set, nbFramedShots)):
             # Retrieve the index of the vertex with the highest degree, s
-            start_time = process_time()
             imax = self.getMaxDegreeVertexIndex(adj_mat_copy)
-            print("get max degree: ", process_time() - start_time, "seconds")
 
             # If all vertices have a degree of 0, no solution
             if (imax == -1):
@@ -192,9 +186,7 @@ class Glouton:
                 break
 
             # Remove s and his neighbours
-            start_time = process_time()
             adj_mat_copy = self.removeNeighbours(adj_mat_copy, adj_mat_copy[imax])
-            print("remove neighbours: ", process_time() - start_time, "seconds")
 
             # Add s to the solution set
             dominating_set.append(self.adj_mat[imax])
@@ -281,13 +273,16 @@ class Glouton:
             buildSolutionFile(self, dominating_set)
 
     def solve(self):
+        start = time.clock()
         self.buildAdjacencyMatrix()
+        print("generation = ", time.clock() - start)
                 
         # Pick the correct algorithm to solve the problem depending on the parameters of the problem
         if (not self.problem.min_dist is None):
             return self.solve_minDist()
         else:
             return self.solve_noExtension()
+        print("solution = ", time.clock() - start)
 
     def respectsMinDist(self, subset, nbFramedShots, minDist):
         for i in range(len(subset)):

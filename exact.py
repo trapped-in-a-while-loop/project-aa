@@ -2,13 +2,13 @@ import numpy as np
 import math
 import itertools
 import sys
+import time
 from util import buildSolutionFile, SOLUTION_FILE_NAME
 from itertools import chain, combinations
 from geometry import segmentCircleIntersection
 from operator import add
 from board import maxDist
 import array
-from time import process_time
 
 class Exact :
     def __init__(self, problem):
@@ -46,7 +46,6 @@ class Exact :
         return result
 
     def buildAdjacencyMatrix(self):
-        start_time = process_time()
         field_min = [min(np.concatenate((self.problem.opponents[0], self.problem.goals[0].posts[0]))), min(np.concatenate((self.problem.opponents[1], self.problem.goals[0].posts[1])))]
         field_max = [max(np.concatenate((self.problem.opponents[0], self.problem.goals[0].posts[0]))), max(np.concatenate((self.problem.opponents[1], self.problem.goals[0].posts[1])))]
 
@@ -76,8 +75,8 @@ class Exact :
                             scoring_kicks.append([opponent, direction + math.pi])
                 direction += self.problem.theta_step
 
-        rangeX = self.frange(self.problem.field_limits[0][0], field_min[0], field_max[0] + self.problem.pos_step, self.problem.pos_step)
-        rangeY = self.frange(self.problem.field_limits[1][0], field_min[1], field_max[1] + self.problem.pos_step, self.problem.pos_step)
+        rangeX = self.frange(self.problem.field_limits[0][0], field_min[0], field_max[0], self.problem.pos_step)
+        rangeY = self.frange(self.problem.field_limits[1][0], field_min[1], field_max[1], self.problem.pos_step)
 
         for x in rangeX:
             for y in rangeY:
@@ -106,7 +105,6 @@ class Exact :
                             self.coord_map[str(adj_line)] = [[x,y]]
 
         print("matrix's size = " + str(len(self.adj_mat)) + ", " + str(len(self.adj_mat[0])))
-        print("build matrix: ", process_time() - start_time, "seconds")
 
     # Returns true if <subset> is a dominating set, false otherwise
     def isDominating(self, subset, nbFramedShots):
@@ -347,12 +345,17 @@ class Exact :
             return False
 
     def solve(self):
+        start = time.clock()
+        result = 0
         self.buildAdjacencyMatrix()
+        print("generation = ", time.clock() - start)
                 
         # Pick the correct algorithm to solve the problem depending on the parameters of the problem
         if (not self.problem.min_dist is None):
-            return self.solve_minDist()
+            result = self.solve_minDist()
         elif (not self.problem.defenders is None):
-            return self.solve_initialPosDefenders()
+            result = self.solve_initialPosDefenders()
         else:
-            return self.solve_noExtension()
+            result = self.solve_noExtension()
+        print("solution = ", time.clock() - start)
+        return result
