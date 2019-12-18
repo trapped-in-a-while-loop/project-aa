@@ -13,7 +13,7 @@ if (len(sys.argv) != 2 and len(sys.argv) != 3):
     + sys.argv[0] + " <problem.json>")
 
 problem_path = sys.argv[1]
-solution_path = ""
+solution_path = SOLUTION_FILE_NAME
 
 with open(problem_path) as problem_file:
     problem = Problem(json.load(problem_file))
@@ -25,8 +25,10 @@ else:
     start_time = process_time()
 
     e = Exact(problem)
-    e.solve()
-    solution_path = SOLUTION_FILE_NAME
+    solution_found = e.solve()
+
+    if not solution_found:
+        sys.exit()
 
     print("Execution time: ", process_time() - start_time, "seconds")
     

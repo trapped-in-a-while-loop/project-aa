@@ -4,6 +4,12 @@ import matplotlib.pyplot as plt
 SOLUTION_FILE_NAME = "solution.json"
 
 def buildSolutionFile(exact, minSet):
+    print("The minimal dominating set is")
+    print(minSet)
+    print("It matches the positions ")
+    for i in range(len(minSet)):
+        print(exact.coord_map[str(minSet[i])][0])
+
     solFile = open(SOLUTION_FILE_NAME, "w+")
     solFile.write("{\"defenders\":[")
     for i in range(len(minSet)):

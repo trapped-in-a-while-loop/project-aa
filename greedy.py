@@ -4,8 +4,7 @@ import time
 from util import buildSolutionFile, SOLUTION_FILE_NAME
 from geometry import segmentCircleIntersection
 from operator import add
-
-SOLUTION_FILE_NAME = "solution.json"
+from time import process_time
 
 class Glouton:
     def __init__(self, problem):
@@ -45,6 +44,7 @@ class Glouton:
         return result
 
     def buildAdjacencyMatrix(self):
+        start_time = process_time()
         field_min = [min(np.concatenate((self.problem.opponents[0], self.problem.goals[0].posts[0]))), min(np.concatenate((self.problem.opponents[1], self.problem.goals[0].posts[1])))]
         field_max = [max(np.concatenate((self.problem.opponents[0], self.problem.goals[0].posts[0]))), max(np.concatenate((self.problem.opponents[1], self.problem.goals[0].posts[1])))]
 
@@ -103,6 +103,7 @@ class Glouton:
                             self.coord_map[str(adj_line)] = [[x,y]]
 
         print("matrix's size = " + str(len(self.adj_mat)) + ", " + str(len(self.adj_mat[0])))
+        print("build matrix: ", process_time() - start_time, "seconds")
 
     # Returns true if <subset> is a dominating set, false otherwise
     def isDominating(self, subset, nbPotentialGoals):
@@ -129,9 +130,6 @@ class Glouton:
         return neighbours
 
     def removeNeighbours(self, adj_mat, vertex):
-        # Remove the vertex
-        adj_mat.remove(vertex)        
-
         neighboursToRemove = self.getNeighbours(adj_mat, vertex)
 
         # Remove his neighbors
@@ -160,46 +158,57 @@ class Glouton:
 
         for i in range(len(adj_mat)):
             degrees_nb = adj_mat[i].count(1)
-            if (degrees_nb > max_degrees):
+            if (degrees_nb >= max_degrees):
                 max_degrees_index = i
                 max_degrees = degrees_nb
 
+        if max_degrees == 0:
+            return -1
         return max_degrees_index
 
     def solve_noExtension(self):
         dominating_set = ([])
         nbFramedShots = len(self.adj_mat[0])
+        solutionFound = True
 
         for i in range(len(self.adj_mat)):
             self.degrees.append(self.adj_mat[i].count(1))
 
         # Make a copy of the graph
+        start_time = process_time()
         adj_mat_copy = self.adj_mat.copy()
+        print("copy matrix: ", process_time() - start_time, "seconds")
 
         while (not self.isDominating(dominating_set, nbFramedShots)):
-            # Retrieve the index of the vertex with the highest degree, v
+            # Retrieve the index of the vertex with the highest degree, s
+            start_time = process_time()
             imax = self.getMaxDegreeVertexIndex(adj_mat_copy)
+            print("get max degree: ", process_time() - start_time, "seconds")
 
-            # Remove v and his neighbours
+            # If all vertices have a degree of 0, no solution
+            if (imax == -1):
+                print("There is no solution!")
+                solutionFound = False
+                break
+
+            # Remove s and his neighbours
+            start_time = process_time()
             adj_mat_copy = self.removeNeighbours(adj_mat_copy, adj_mat_copy[imax])
+            print("remove neighbours: ", process_time() - start_time, "seconds")
 
-            # Add v to the solution set
+            # Add s to the solution set
             dominating_set.append(self.adj_mat[imax])
 
-        print("Size of the greedy dominating set: " + str(len(dominating_set)))
-        for i in range(len(dominating_set)):
-            print("Number of shots blocked by the defender ", i, " : ", dominating_set[i].count(1))
-
-        if (dominating_set != ([])):
-            print("The dominating set is")
-            print(dominating_set)
-            print("It matches the positions ")
-            for s in dominating_set:
-                print(self.coord_map[str(s)][0])
+        if solutionFound:
+            print("Size of the greedy dominating set: " + str(len(dominating_set)))
+            for i in range(len(dominating_set)):
+                print("Number of shots blocked by the defender ", i, " : ", dominating_set[i].count(1))
             buildSolutionFile(self, dominating_set)
+            return True
+
+        return False
 
     def solve_old(self):
-        self.buildAdjacencyMatrix()
         dominating_set = ([])
 
         for i in range(len(self.adj_mat)):
@@ -227,11 +236,6 @@ class Glouton:
             print("Number of shots blocked by the defender ", i, " : ", dominating_set[i].count(1))
 
         if (dominating_set != ([])):
-            print("The dominating set is")
-            print(dominating_set)
-            print("It matches the positions ")
-            for s in dominating_set:
-                print(self.coord_map[str(s)][0])
             buildSolutionFile(self, dominating_set)
 
     def solve_minDist(self):
@@ -253,6 +257,9 @@ class Glouton:
                 print("mhm")
                 break
 
+            #if (self.respectsMinDist(dominating_set, nbFramedShots, self.problem.min_dist)):
+
+
             # Remove v and his neighbours
             adj_mat_copy = self.removeNeighbours(adj_mat_copy, adj_mat_copy[imax])
 
@@ -271,11 +278,6 @@ class Glouton:
             print("Number of shots blocked by the defender ", i, " : ", dominating_set[i].count(1))
 
         if (dominating_set != ([])):
-            print("The dominating set is")
-            print(dominating_set)
-            print("It matches the positions ")
-            for s in dominating_set:
-                print(self.coord_map[str(s)][0])
             buildSolutionFile(self, dominating_set)
 
     def solve(self):
@@ -283,9 +285,9 @@ class Glouton:
                 
         # Pick the correct algorithm to solve the problem depending on the parameters of the problem
         if (not self.problem.min_dist is None):
-            self.solve_minDist()
+            return self.solve_minDist()
         else:
-            self.solve_noExtension()
+            return self.solve_noExtension()
 
     def respectsMinDist(self, subset, nbFramedShots, minDist):
         for i in range(len(subset)):
@@ -302,6 +304,26 @@ class Glouton:
             for o in self.opponents_pos:
                 if math.hypot(o[0] - coord_i[0], o[1] - coord_i[1]) <= minDist + 1e-15:
                     return False
+ 
+        return True
+
+    def respectsMinDist2(self, subset, nbFramedShots, minDist):
+        for i in range(len(subset)):
+            # Coordinates 
+            coord_i = self.coord_map[str(subset[i])]
+            
+            for c_i in coord_i:
+                # Check if the min distance is respected between all defenders
+                for j in range(i, len(subset)):
+                    coord_j = self.coord_map[str(subset[j])][0]
+                    for c_j in coord_j:
+                        if i != j and math.hypot(coord_j[0] - coord_i[0], coord_j[1] - coord_i[1]) <= minDist + 1e-15:
+                            return False
+
+                # Check if the min distance isrespected between defenders and opponents
+                for o in self.opponents_pos:
+                    if math.hypot(o[0] - coord_i[0], o[1] - coord_i[1]) <= minDist + 1e-15:
+                        return False
  
         return True
 

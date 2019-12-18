@@ -8,6 +8,7 @@ from geometry import segmentCircleIntersection
 from operator import add
 from board import maxDist
 import array
+from time import process_time
 
 class Exact :
     def __init__(self, problem):
@@ -45,6 +46,7 @@ class Exact :
         return result
 
     def buildAdjacencyMatrix(self):
+        start_time = process_time()
         field_min = [min(np.concatenate((self.problem.opponents[0], self.problem.goals[0].posts[0]))), min(np.concatenate((self.problem.opponents[1], self.problem.goals[0].posts[1])))]
         field_max = [max(np.concatenate((self.problem.opponents[0], self.problem.goals[0].posts[0]))), max(np.concatenate((self.problem.opponents[1], self.problem.goals[0].posts[1])))]
 
@@ -104,6 +106,7 @@ class Exact :
                             self.coord_map[str(adj_line)] = [[x,y]]
 
         print("matrix's size = " + str(len(self.adj_mat)) + ", " + str(len(self.adj_mat[0])))
+        print("build matrix: ", process_time() - start_time, "seconds")
 
     # Returns true if <subset> is a dominating set, false otherwise
     def isDominating(self, subset, nbFramedShots):
@@ -233,7 +236,12 @@ class Exact :
 
             cpt += 1
 
-        return minimalDominantSet
+        if (minimalDominantSet != ([])):
+            buildSolutionFile(self, minimalDominantSet)
+            return True
+        else:
+            print("There is no solution!")
+            return False
     
     def solve_initialPosDefenders(self):
         dominating_sets = []
@@ -331,30 +339,20 @@ class Exact :
          
             cpt += 1
 
-        return minimalDominantSet
+        if (minimalDominantSet != ([])):
+            buildSolutionFile(self, minimalDominantSet)
+            return True
+        else:
+            print("There is no solution!")
+            return False
 
     def solve(self):
         self.buildAdjacencyMatrix()
-        minimalDominantSet = ([])
                 
         # Pick the correct algorithm to solve the problem depending on the parameters of the problem
         if (not self.problem.min_dist is None):
-            minimalDominantSet = self.solve_minDist()
+            return self.solve_minDist()
         elif (not self.problem.defenders is None):
-            self.solve_initialPosDefenders()
+            return self.solve_initialPosDefenders()
         else:
-            minimalDominantSet = self.solve_noExtension()
-
-        # The function solving the initial defenders problem build a solution file on its own
-        if (self.problem.defenders is None):
-            if (minimalDominantSet != ([])):
-                print("The minimal dominating set is")
-                print(minimalDominantSet)
-                print("It matches the positions ")
-                for i in range(len(minimalDominantSet)):
-                    print(self.coord_map[str(minimalDominantSet[i])][0])
-                buildSolutionFile(self, minimalDominantSet)
-        
-            else:
-                print("Il n'y a pas de sous ensemble dominant! C'est dommage")
-
+            return self.solve_noExtension()
