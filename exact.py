@@ -234,7 +234,7 @@ class Exact :
 
             cpt += 1
 
-        if (minimalDominantSet != ([])):
+        if (solutionFound):
             buildSolutionFile(self, minimalDominantSet)
             return True
         else:
@@ -337,7 +337,7 @@ class Exact :
          
             cpt += 1
 
-        if (minimalDominantSet != ([])):
+        if (solutionFound):
             buildSolutionFile(self, minimalDominantSet)
             return True
         else:
