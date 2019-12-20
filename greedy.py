@@ -101,7 +101,6 @@ class Glouton:
                             self.coord_map[str(adj_line)] = [[x,y]]
 
         print("matrix's size = " + str(len(self.adj_mat)) + ", " + str(len(self.adj_mat[0])))
-        print(self.coord_map)
 
     # Returns true if <subset> is a dominating set, false otherwise
     def isDominating(self, subset, nbPotentialGoals):
@@ -273,13 +272,15 @@ class Glouton:
         start = time.clock()
         self.buildAdjacencyMatrix()
         print("generation = ", time.clock() - start)
+        result = 0
                 
         # Pick the correct algorithm to solve the problem depending on the parameters of the problem
         if (not self.problem.min_dist is None):
-            return self.solve_minDist()
+            result = self.solve_minDist()
         else:
-            return self.solve_noExtension()
+            result = self.solve_noExtension()
         print("solution = ", time.clock() - start)
+        return result
 
     def respectsMinDist(self, subset, nbFramedShots, minDist):
         for i in range(len(subset)):
