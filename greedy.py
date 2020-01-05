@@ -5,8 +5,6 @@ from util import buildSolutionFile, SOLUTION_FILE_NAME
 from geometry import segmentCircleIntersection
 from operator import add
 
-SOLUTION_FILE_NAME = "solution.json"
-
 class Glouton:
     def __init__(self, problem):
         self.adj_mat = []
@@ -27,11 +25,14 @@ class Glouton:
         new_point = np.array(list(map(add, old_point, [x, y])))
         return new_point
 
-    def frange(self, start, stop, step):
+    def frange(self, start, min, max, step):
         i = start
-        while i < stop:
-            yield i
+        result = list()
+        while i < max:
+            if (i > min):
+                result.append(i)
             i += step
+        return result
 
     def dist(self, opponents, defense, robot_radius):
         result = True
@@ -42,6 +43,9 @@ class Glouton:
         return result
 
     def buildAdjacencyMatrix(self):
+        field_min = [min(np.concatenate((self.problem.opponents[0], self.problem.goals[0].posts[0]))), min(np.concatenate((self.problem.opponents[1], self.problem.goals[0].posts[1])))]
+        field_max = [max(np.concatenate((self.problem.opponents[0], self.problem.goals[0].posts[0]))), max(np.concatenate((self.problem.opponents[1], self.problem.goals[0].posts[1])))]
+
         for i in range(len(self.problem.opponents[0])):
             self.opponents_pos.append([self.problem.opponents[0][i], self.problem.opponents[1][i]])
 
@@ -51,6 +55,7 @@ class Glouton:
             self.problem.goals[i].posts[1][0]])
             posts.append([self.problem.goals[i].posts[0][1],
             self.problem.goals[i].posts[1][1]])
+
 
         scoring_kicks = []
         for i in range(len(self.problem.opponents[0])):
@@ -67,32 +72,35 @@ class Glouton:
                             scoring_kicks.append([opponent, direction + math.pi])
                 direction += self.problem.theta_step
 
-        for x in self.frange(self.problem.field_limits[0][0], self.problem.field_limits[0][1],
-        self.problem.pos_step):
-            for y in self.frange(self.problem.field_limits[1][0], self.problem.field_limits[1][1],
-            self.problem.pos_step):
+        rangeX = self.frange(self.problem.field_limits[0][0], field_min[0], field_max[0], self.problem.pos_step)
+        rangeY = self.frange(self.problem.field_limits[1][0], field_min[1], field_max[1], self.problem.pos_step)
+
+        for x in rangeX:
+            for y in rangeY:
                 defense = [x, y]
                 adj_line = [0] * len(scoring_kicks)
-                if self.dist(self.possible_defs, defense, self.problem.robot_radius):
-                    if self.dist(self.opponents_pos, defense, self.problem.robot_radius):
-                        for kick in scoring_kicks:
-                            if not (segmentCircleIntersection(kick[0],
-                            self.anotherPoint(kick[0], kick[1]), defense, self.problem.robot_radius) is None):
-                                if segmentCircleIntersection(np.array(posts[0]), np.array(posts[1]),
-                                defense, self.problem.robot_radius) is None:
-                                    adj_line[scoring_kicks.index(kick)] = 1
+                if self.dist(self.opponents_pos, defense, self.problem.robot_radius):
+                    for kick in scoring_kicks:
+                        if not (segmentCircleIntersection(kick[0],
+                        self.anotherPoint(kick[0], kick[1]), defense, self.problem.robot_radius) is None):
+                            if segmentCircleIntersection(np.array(posts[0]), np.array(posts[1]),
+                            defense, self.problem.robot_radius) is None:
+                                adj_line[scoring_kicks.index(kick)] = 1
+                                if defense not in self.possible_defs:
                                     self.possible_defs.append(defense)
-                        if 1 in adj_line:
-                            self.adj_mat.append(adj_line)
 
-                            if (str(adj_line) in self.coord_map):
-                                self.coord_map[str(adj_line)].append([x, y])
+                    if 1 in adj_line:
+
+                        if (adj_line not in self.adj_mat):
+                            self.adj_mat.append(adj_line)
+    
+                        if (str(adj_line) in self.coord_map):
+                            self.coord_map[str(adj_line)].append([x, y])
                                             
-                            else:
-                                self.coord_map[str(adj_line)] = [[x,y]]
-        
-        print("matrix's size = " + str(len(self.adj_mat)) + ", " +
-        str(len(self.adj_mat[0])))
+                        else:
+                            self.coord_map[str(adj_line)] = [[x,y]]
+
+        print("matrix's size = " + str(len(self.adj_mat)) + ", " + str(len(self.adj_mat[0])))
 
     # Returns true if <subset> is a dominating set, false otherwise
     def isDominating(self, subset, nbPotentialGoals):
@@ -108,38 +116,76 @@ class Glouton:
                 return False
         return True
 
-    def solve(self):
-        self.buildAdjacencyMatrix()
+    def getNeighbours(self, adj_mat, vertex):
+        nbFramedShots = len(adj_mat[0])
+        neighbours = []
+
+        for i in range(nbFramedShots):
+            if vertex[i] == 1:
+                neighbours.append(i)
+
+        return neighbours
+
+    def removeNeighbours(self, adj_mat, vertex):
+        neighboursToRemove = self.getNeighbours(adj_mat, vertex)
+
+        # Remove his neighbors
+        a = np.array(adj_mat)
+        a = np.delete(a, neighboursToRemove, axis=1)
+
+        return a.tolist()
+
+    def getMaxDegreeVertexIndex(self, adj_mat):
+        max_degrees = 0
+        max_degrees_index = -1
+
+        for i in range(len(adj_mat)):
+            degrees_nb = adj_mat[i].count(1)
+            if (degrees_nb >= max_degrees):
+                max_degrees_index = i
+                max_degrees = degrees_nb
+
+        if max_degrees == 0:
+            return -1
+        return max_degrees_index
+
+    def solve_noExtension(self):
         dominating_set = ([])
+        nbFramedShots = len(self.adj_mat[0])
+        solutionFound = True
 
-        for i in range(len(self.adj_mat)):
-            self.degrees.append(self.adj_mat[i].count(1))
+        # Make a copy of the graph
+        adj_mat_copy = self.adj_mat.copy()
 
-        while (not self.isDominating(dominating_set, len(self.adj_mat[0])) and len(dominating_set) < len(self.adj_mat)):
-            # s = vertex with the highest degree
-            s = self.degrees.index(max(self.degrees))
+        while (not self.isDominating(dominating_set, nbFramedShots)):
+            # Retrieve the index of the vertex with the highest degree, s
+            imax = self.getMaxDegreeVertexIndex(adj_mat_copy)
 
-            # if this vertex is not in the dominating set, add it
-            if not self.adj_mat[s] in dominating_set:
-                dominating_set.append(self.adj_mat[s])
+            # If all vertices have a degree of 0, no solution
+            if (imax == -1):
+                print("There is no solution!")
+                solutionFound = False
+                break
 
-            # Set its degree to 0 so it won't be picked again
-            self.degrees[s] = 0
+            # Remove s and his neighbours
+            adj_mat_copy = self.removeNeighbours(adj_mat_copy, adj_mat_copy[imax])
 
-            for i in range(len(self.adj_mat[s])):
-                if self.adj_mat[s][i] == 1:
-                    for j in range(len(self.adj_mat)):
-                        if self.adj_mat[j][i] == 1:
-                            self.degrees[j] -= 1 
+            # Add s to the solution set
+            dominating_set.append(self.adj_mat[imax])
 
-        print("size dom set: " + str(len(dominating_set)))
-        for i in dominating_set:
-            print(str(i.count(1)) + ", ")
-
-        if (dominating_set != ([])):
-            print("Le sous ensemble dominant est ")
-            print(dominating_set)
-            print("Cela correspond aux positions ")
-            for s in dominating_set:
-                print(self.coord_map[str(s)])
+        if solutionFound:
+            print("Size of the greedy dominating set: " + str(len(dominating_set)))
+            for i in range(len(dominating_set)):
+                print("Number of shots blocked by the defender ", i, " : ", dominating_set[i].count(1))
             buildSolutionFile(self, dominating_set)
+            return True
+
+        return False
+
+    def solve(self):
+        start = time.clock()
+        self.buildAdjacencyMatrix()
+        print("generation = ", time.clock() - start)
+        result = self.solve_noExtension()
+        print("solution = ", time.clock() - start)
+        return result

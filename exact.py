@@ -2,11 +2,13 @@ import numpy as np
 import math
 import itertools
 import sys
+import time
 from util import buildSolutionFile, SOLUTION_FILE_NAME
 from itertools import chain, combinations
 from geometry import segmentCircleIntersection
 from operator import add
 from board import maxDist
+import array
 
 class Exact :
     def __init__(self, problem):
@@ -26,11 +28,14 @@ class Exact :
         new_point = np.array(list(map(add, old_point, [x, y])))
         return new_point
 
-    def frange(self, start, stop, step):
+    def frange(self, start, min, max, step):
         i = start
-        while i < stop:
-            yield i
+        result = list()
+        while i < max:
+            if (i > min):
+                result.append(i)
             i += step
+        return result
 
     def dist(self, opponents, defense, robot_radius):
         result = True
@@ -41,6 +46,9 @@ class Exact :
         return result
 
     def buildAdjacencyMatrix(self):
+        field_min = [min(np.concatenate((self.problem.opponents[0], self.problem.goals[0].posts[0]))), min(np.concatenate((self.problem.opponents[1], self.problem.goals[0].posts[1])))]
+        field_max = [max(np.concatenate((self.problem.opponents[0], self.problem.goals[0].posts[0]))), max(np.concatenate((self.problem.opponents[1], self.problem.goals[0].posts[1])))]
+
         for i in range(len(self.problem.opponents[0])):
             self.opponents_pos.append([self.problem.opponents[0][i], self.problem.opponents[1][i]])
 
@@ -50,6 +58,7 @@ class Exact :
             self.problem.goals[i].posts[1][0]])
             posts.append([self.problem.goals[i].posts[0][1],
             self.problem.goals[i].posts[1][1]])
+
 
         scoring_kicks = []
         for i in range(len(self.problem.opponents[0])):
@@ -66,32 +75,36 @@ class Exact :
                             scoring_kicks.append([opponent, direction + math.pi])
                 direction += self.problem.theta_step
 
-        for x in self.frange(self.problem.field_limits[0][0], self.problem.field_limits[0][1],
-        self.problem.pos_step):
-            for y in self.frange(self.problem.field_limits[1][0], self.problem.field_limits[1][1],
-            self.problem.pos_step):
+        rangeX = self.frange(self.problem.field_limits[0][0], field_min[0], field_max[0], self.problem.pos_step)
+        rangeY = self.frange(self.problem.field_limits[1][0], field_min[1], field_max[1], self.problem.pos_step)
+
+        for x in rangeX:
+            for y in rangeY:
                 defense = [x, y]
                 adj_line = [0] * len(scoring_kicks)
-                if self.dist(self.possible_defs, defense, self.problem.robot_radius):
-                    if self.dist(self.opponents_pos, defense, self.problem.robot_radius):
-                        for kick in scoring_kicks:
-                            if not (segmentCircleIntersection(kick[0],
-                            self.anotherPoint(kick[0], kick[1]), defense, self.problem.robot_radius) is None):
-                                if segmentCircleIntersection(np.array(posts[0]), np.array(posts[1]),
-                                defense, self.problem.robot_radius) is None:
-                                    adj_line[scoring_kicks.index(kick)] = 1
+                if self.dist(self.opponents_pos, defense, self.problem.robot_radius):
+                    for kick in scoring_kicks:
+                        if not (segmentCircleIntersection(kick[0],
+                        self.anotherPoint(kick[0], kick[1]), defense, self.problem.robot_radius) is None):
+                            if segmentCircleIntersection(np.array(posts[0]), np.array(posts[1]),
+                            defense, self.problem.robot_radius) is None:
+                                adj_line[scoring_kicks.index(kick)] = 1
+                                if defense not in self.possible_defs:
                                     self.possible_defs.append(defense)
-                        if 1 in adj_line:
-                            self.adj_mat.append(adj_line)
 
-                            if (str(adj_line) in self.coord_map):
-                                self.coord_map[str(adj_line)].append([x, y])
+
+                    if (1 in adj_line):
+
+                        if (adj_line not in self.adj_mat):
+                            self.adj_mat.append(adj_line)
+    
+                        if (str(adj_line) in self.coord_map):
+                            self.coord_map[str(adj_line)].append([x, y])
                                             
-                            else:
-                                self.coord_map[str(adj_line)] = [[x,y]]
-        
-        print("matrix's size = " + str(len(self.adj_mat)) + ", " +
-        str(len(self.adj_mat[0])))
+                        else:
+                            self.coord_map[str(adj_line)] = [[x,y]]
+
+        print("matrix's size = " + str(len(self.adj_mat)) + ", " + str(len(self.adj_mat[0])))
 
     # Returns true if <subset> is a dominating set, false otherwise
     def isDominating(self, subset, nbFramedShots):
@@ -221,7 +234,12 @@ class Exact :
 
             cpt += 1
 
-        return minimalDominantSet
+        if (solutionFound):
+            buildSolutionFile(self, minimalDominantSet)
+            return True
+        else:
+            print("There is no solution!")
+            return False
     
     def solve_initialPosDefenders(self):
         dominating_sets = []
@@ -319,30 +337,25 @@ class Exact :
          
             cpt += 1
 
-        return minimalDominantSet
+        if (solutionFound):
+            buildSolutionFile(self, minimalDominantSet)
+            return True
+        else:
+            print("There is no solution!")
+            return False
 
     def solve(self):
+        start = time.clock()
+        result = 0
         self.buildAdjacencyMatrix()
-        minimalDominantSet = ([])
+        print("generation = ", time.clock() - start)
                 
         # Pick the correct algorithm to solve the problem depending on the parameters of the problem
         if (not self.problem.min_dist is None):
-            minimalDominantSet = self.solve_minDist()
+            result = self.solve_minDist()
         elif (not self.problem.defenders is None):
-            self.solve_initialPosDefenders()
+            result = self.solve_initialPosDefenders()
         else:
-            minimalDominantSet = self.solve_noExtension()
-
-        # The function solving the initial defenders problem build a solution file on its own
-        if (self.problem.defenders is None):
-            if (minimalDominantSet != ([])):
-                print("Le sous ensemble minimal est ")
-                print(minimalDominantSet)
-                print("Cela correspond aux positions ")
-                for i in range(len(minimalDominantSet)):
-                    print(self.coord_map[str(minimalDominantSet[i])][0])
-                buildSolutionFile(self, minimalDominantSet)
-        
-            else:
-                print("Il n'y a pas de sous ensemble dominant! C'est dommage")
-
+            result = self.solve_noExtension()
+        print("solution = ", time.clock() - start)
+        return result
