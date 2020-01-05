@@ -92,8 +92,7 @@ class Exact :
                                 if defense not in self.possible_defs:
                                     self.possible_defs.append(defense)
 
-
-                    if (1 in adj_line):
+                    if 1 in adj_line:
 
                         if (adj_line not in self.adj_mat):
                             self.adj_mat.append(adj_line)
